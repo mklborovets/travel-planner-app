@@ -26,6 +26,8 @@ export const AddPlaceScreen: React.FC = () => {
     handleOpenCategoryModal,
     handleCloseCategoryModal,
     handleSelectCategoryFromModal,
+    handleLatitudeInputChange,
+    handleLongitudeInputChange,
     handleUseCurrentCoordinates,
     handleSubmitForm,
   } = useAddPlaceForm();
@@ -118,12 +120,17 @@ export const AddPlaceScreen: React.FC = () => {
 
         <View className="mb-4">
           <View className="mb-1.5 flex-row items-center justify-between">
-            <Text className="text-sm font-semibold text-slate-700">
-              Coordinates *
-            </Text>
+            <View>
+              <Text className="text-sm font-semibold text-slate-700">
+                Coordinates *
+              </Text>
+              <Text className="text-[11px] text-slate-400">
+                Tip: Paste &quot;49.84166, 24.03533&quot; to auto-fill both fields
+              </Text>
+            </View>
             <Pressable
               onPress={handleUseCurrentCoordinates}
-              className="flex-row items-center rounded-lg bg-blue-50 px-2.5 py-1">
+              className="flex-row items-center rounded-lg bg-blue-50 px-2.5 py-1.5">
               <Crosshair size={14} color="#2563eb" />
               <Text className="ml-1.5 text-xs font-semibold text-blue-600">
                 Use Current Location
@@ -137,10 +144,10 @@ export const AddPlaceScreen: React.FC = () => {
               <Controller
                 control={control}
                 name="latitude"
-                render={({field: {onChange, onBlur, value}}) => (
+                render={({field: {onBlur, value}}) => (
                   <TextInput
                     value={value}
-                    onChangeText={onChange}
+                    onChangeText={handleLatitudeInputChange}
                     onBlur={onBlur}
                     keyboardType="numbers-and-punctuation"
                     placeholder="49.83970"
@@ -161,10 +168,10 @@ export const AddPlaceScreen: React.FC = () => {
               <Controller
                 control={control}
                 name="longitude"
-                render={({field: {onChange, onBlur, value}}) => (
+                render={({field: {onBlur, value}}) => (
                   <TextInput
                     value={value}
-                    onChangeText={onChange}
+                    onChangeText={handleLongitudeInputChange}
                     onBlur={onBlur}
                     keyboardType="numbers-and-punctuation"
                     placeholder="24.02970"

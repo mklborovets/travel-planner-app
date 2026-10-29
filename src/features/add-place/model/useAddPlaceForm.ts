@@ -10,7 +10,10 @@ import {
   PLACE_CATEGORIES,
   PRIMARY_PLACE_CATEGORIES,
 } from '../../../shared/config/categories';
-import {DEFAULT_COORDINATES} from '../../../shared/lib/location';
+import {
+  DEFAULT_COORDINATES,
+  parseCoordinatePairInput,
+} from '../../../shared/lib/location';
 import {useCurrentLocation} from '../../../shared/lib/useCurrentLocation';
 import {RootStackParamList} from '../../../shared/types/navigation';
 import {placeFormSchema, PlaceFormValues} from './placeSchema';
@@ -87,6 +90,32 @@ export const useAddPlaceForm = () => {
     [setValue],
   );
 
+  const handleLatitudeInputChange = useCallback(
+    (rawText: string) => {
+      const parsedPair = parseCoordinatePairInput(rawText);
+      if (parsedPair) {
+        setValue('latitude', parsedPair.latitude, {shouldValidate: true});
+        setValue('longitude', parsedPair.longitude, {shouldValidate: true});
+        return;
+      }
+      setValue('latitude', rawText, {shouldValidate: true});
+    },
+    [setValue],
+  );
+
+  const handleLongitudeInputChange = useCallback(
+    (rawText: string) => {
+      const parsedPair = parseCoordinatePairInput(rawText);
+      if (parsedPair) {
+        setValue('latitude', parsedPair.latitude, {shouldValidate: true});
+        setValue('longitude', parsedPair.longitude, {shouldValidate: true});
+        return;
+      }
+      setValue('longitude', rawText, {shouldValidate: true});
+    },
+    [setValue],
+  );
+
   const handleUseCurrentCoordinates = useCallback(() => {
     setValue('latitude', currentCoordinates.latitude.toFixed(5), {
       shouldValidate: true,
@@ -128,6 +157,8 @@ export const useAddPlaceForm = () => {
     handleOpenCategoryModal,
     handleCloseCategoryModal,
     handleSelectCategoryFromModal,
+    handleLatitudeInputChange,
+    handleLongitudeInputChange,
     handleUseCurrentCoordinates,
     handleSubmitForm,
   };

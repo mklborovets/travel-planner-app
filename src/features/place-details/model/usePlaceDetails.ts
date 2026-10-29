@@ -1,4 +1,4 @@
-import {useCallback, useMemo} from 'react';
+import {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {RouteProp, useNavigation, useRoute} from '@react-navigation/native';
 import {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {usePlacesStore} from '../../../entities/place/model/placesStore';
@@ -10,6 +10,10 @@ import {
   formatCoordinates,
   formatDistance,
 } from '../../../shared/lib/location';
+import {
+  copyTextToClipboard,
+  sharePlaceDetails,
+} from '../../../shared/lib/share';
 import {useCurrentLocation} from '../../../shared/lib/useCurrentLocation';
 import {RootStackParamList} from '../../../shared/types/navigation';
 
@@ -44,6 +48,19 @@ export const usePlaceDetails = () => {
     state => state.customAnchorCoordinates,
   );
 
+  const [isAddressCopied, setIsAddressCopied] = useState<boolean>(false);
+  const copyFeedbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
+
+  useEffect(() => {
+    return () => {
+      if (copyFeedbackTimerRef.current) {
+        clearTimeout(copyFeedbackTimerRef.current);
+      }
+    };
+  }, []);
+
   const originCoordinates =
     distanceAnchorMode === 'custom' ? customAnchorCoordinates : userCoordinates;
 
@@ -70,6 +87,27 @@ export const usePlaceDetails = () => {
       isInTrip,
     };
   }, [place, originCoordinates, isInTrip]);
+
+  const handleCopyAddress = useCallback(() => {
+    if (!place) {
+      return;
+    }
+    copyTextToClipboard(place.address);
+    setIsAddressCopied(true);
+    if (copyFeedbackTimerRef.current) {
+      clearTimeout(copyFeedbackTimerRef.current);
+    }
+    copyFeedbackTimerRef.current = setTimeout(() => {
+      setIsAddressCopied(false);
+    }, 2000);
+  }, [place]);
+
+  const handleSharePlace = useCallback(async () => {
+    if (!place) {
+      return;
+    }
+    await sharePlaceDetails(place);
+  }, [place]);
 
   const handleToggleFavorite = useCallback(() => {
     if (!place) {
@@ -117,6 +155,9 @@ export const usePlaceDetails = () => {
 
   return {
     detailsViewModel,
+    isAddressCopied,
+    handleCopyAddress,
+    handleSharePlace,
     handleToggleFavorite,
     handleToggleTrip,
     handleOpenOnMap,

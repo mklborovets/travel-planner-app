@@ -52,3 +52,43 @@ export const formatCoordinates = (coordinates: Coordinates): string => {
   return `${coordinates.latitude.toFixed(5)}, ${coordinates.longitude.toFixed(5)}`;
 };
 
+export interface ParsedCoordinateStrings {
+  latitude: string;
+  longitude: string;
+}
+
+export const parseCoordinatePairInput = (
+  rawInput: string,
+): ParsedCoordinateStrings | null => {
+  if (!rawInput.includes(',') && !rawInput.includes(';') && !/\s/.test(rawInput.trim())) {
+    return null;
+  }
+
+  const cleaned = rawInput.replace(/[()[\]]/g, '').trim();
+  const match = cleaned.match(
+    /^([+-]?\d+(?:\.\d+)?)\s*(?:[,;]|\s+)\s*([+-]?\d+(?:\.\d+)?)$/,
+  );
+
+  if (!match) {
+    return null;
+  }
+
+  const latNum = Number(match[1]);
+  const lonNum = Number(match[2]);
+
+  if (
+    Number.isNaN(latNum) ||
+    Number.isNaN(lonNum) ||
+    latNum < -90 ||
+    latNum > 90 ||
+    lonNum < -180 ||
+    lonNum > 180
+  ) {
+    return null;
+  }
+
+  return {
+    latitude: match[1],
+    longitude: match[2],
+  };
+};
