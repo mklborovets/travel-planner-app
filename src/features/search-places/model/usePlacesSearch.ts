@@ -59,7 +59,7 @@ export const usePlacesSearch = () => {
   const [selectedCityLabel, setSelectedCityLabel] = useState<string>('Lviv');
   const [selectedCityCoordinates, setSelectedCityCoordinates] =
     useState<Coordinates>(DEFAULT_COORDINATES);
-  const [radiusKm, setRadiusKm] = useState<SearchRadiusKm>(15);
+  const [radiusKm, setRadiusKm] = useState<SearchRadiusKm>(5);
   const [isScopeModalVisible, setIsScopeModalVisible] =
     useState<boolean>(false);
   const [customCityInput, setCustomCityInput] = useState<string>('');

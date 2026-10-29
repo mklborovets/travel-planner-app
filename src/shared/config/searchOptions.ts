@@ -48,5 +48,5 @@ export const COUNTRY_FILTER_PRESETS: CountryFilterPreset[] = [
   {code: 'us', label: 'United States (US)'},
 ];
 
-export const SEARCH_RADIUS_OPTIONS: SearchRadiusKm[] = [5, 15, 30, 50];
+export const SEARCH_RADIUS_OPTIONS: SearchRadiusKm[] = [2, 5, 10, 25];
 

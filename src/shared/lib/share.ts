@@ -55,20 +55,56 @@ export const readTextFromClipboard = async (): Promise<string> => {
   return inMemoryClipboardFallback;
 };
 
+const deduplicateQueryParts = (title?: string, address?: string): string => {
+  const combinedRaw = [title, address]
+    .filter((item): item is string => Boolean(item && item.trim().length > 0))
+    .join(', ');
+
+  if (!combinedRaw) {
+    return '';
+  }
+
+  const segments = combinedRaw
+    .split(',')
+    .map(segment => segment.trim())
+    .filter(Boolean);
+
+  const uniqueSegments: string[] = [];
+  const seenLower = new Set<string>();
+
+  segments.forEach(segment => {
+    const lower = segment.toLowerCase();
+    if (!seenLower.has(lower)) {
+      seenLower.add(lower);
+      uniqueSegments.push(segment);
+    }
+  });
+
+  return uniqueSegments.join(', ');
+};
+
+const formatReadableUrlQuery = (rawQuery: string): string => {
+  return rawQuery
+    .trim()
+    .replace(/%/g, '%25')
+    .replace(/&/g, '%26')
+    .replace(/#/g, '%23')
+    .replace(/\+/g, '%2B')
+    .replace(/\?/g, '%3F')
+    .replace(/\s+/g, '+');
+};
+
 export const buildPlaceMapUrl = (
   coordinates: Coordinates,
   title?: string,
   address?: string,
 ): string => {
-  const cleanTitle = title?.trim();
-  const cleanAddress = address?.trim();
+  const deduplicatedText = deduplicateQueryParts(title, address);
   const searchTarget =
-    cleanTitle && cleanAddress
-      ? `${cleanTitle}, ${cleanAddress}`
-      : cleanTitle ||
-        cleanAddress ||
-        `${coordinates.latitude},${coordinates.longitude}`;
-  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+    deduplicatedText.length > 0
+      ? deduplicatedText
+      : `${coordinates.latitude},${coordinates.longitude}`;
+  return `https://www.google.com/maps/search/?api=1&query=${formatReadableUrlQuery(
     searchTarget,
   )}`;
 };
@@ -231,7 +267,8 @@ export const parseImportedTripText = (
       ) {
         return {
           ok: false,
-          error: 'Imported trip format is invalid: missing title or stops list.',
+          error:
+            'Imported trip format is invalid: missing title or stops list.',
         };
       }
 

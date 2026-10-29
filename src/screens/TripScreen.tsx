@@ -69,65 +69,68 @@ export const TripScreen: React.FC = () => {
   return (
     <SafeAreaView edges={['top']} className="flex-1 bg-slate-50">
       <View className="px-4 pt-3 pb-2">
-        <View className="mb-2">
-          <Text className="text-xs font-bold uppercase tracking-wider text-blue-600">
-            Trip Itinerary
-          </Text>
-          <TextInput
-            value={title}
-            onChangeText={setTitle}
-            placeholder="Enter trip name..."
-            placeholderTextColor="#94a3b8"
-            className="p-0 text-2xl font-extrabold text-slate-900"
-          />
-        </View>
+        <View className="mb-2.5 flex-row items-center justify-between">
+          <View className="mr-3 flex-1">
+            <Text className="text-[11px] font-bold uppercase tracking-wider text-blue-600">
+              Active Trip Itinerary
+            </Text>
+            <TextInput
+              value={title}
+              onChangeText={setTitle}
+              placeholder="Enter trip name..."
+              placeholderTextColor="#94a3b8"
+              className="p-0 text-2xl font-extrabold text-slate-900"
+            />
+          </View>
 
-        <View className="mb-3 flex-row items-center justify-between">
           <Pressable
             onPress={handleOpenTripSelector}
-            className="flex-row items-center rounded-xl border border-blue-200 bg-blue-50 px-3 py-2">
-            <Route size={13} color="#2563eb" />
-            <Text className="mx-1.5 text-xs font-bold text-blue-700">
-              Switch Trip ({tripSummaries.length})
+            className="h-10 flex-shrink-0 flex-row items-center rounded-xl border border-blue-200 bg-blue-50 px-3">
+            <Route size={14} color="#2563eb" />
+            <Text
+              style={{fontVariant: ['tabular-nums']}}
+              className="mx-1.5 text-xs font-bold text-blue-700">
+              Trips ({tripSummaries.length})
             </Text>
             <ChevronDown size={14} color="#2563eb" />
           </Pressable>
+        </View>
 
-          <View className="flex-row items-center">
-            {totalCount > 1 ? (
-              <Pressable
-                onPress={handleOpenRouteBuilder}
-                className="mr-1.5 flex-row items-center rounded-xl border border-indigo-200 bg-indigo-50 px-2.5 py-2">
-                <Sparkles size={13} color="#4f46e5" />
-                <Text className="ml-1 text-xs font-bold text-indigo-700">
-                  Build Route
-                </Text>
-              </Pressable>
-            ) : null}
+        <View className="mb-3 flex-row items-center">
+          {totalCount > 1 ? (
+            <Pressable
+              onPress={handleOpenRouteBuilder}
+              className="mr-2 h-10 flex-1 flex-row items-center justify-center rounded-xl border border-indigo-200 bg-indigo-50 px-3">
+              <Sparkles size={14} color="#4f46e5" />
+              <Text className="ml-1.5 text-xs font-bold text-indigo-700">
+                Build Route
+              </Text>
+            </Pressable>
+          ) : null}
 
-            {totalCount > 0 ? (
+          <Pressable
+            onPress={handleOpenTripOnMap}
+            className="mr-2 h-10 flex-1 flex-row items-center justify-center rounded-xl bg-blue-600 px-3">
+            <Map size={14} color="#ffffff" />
+            <Text className="ml-1.5 text-xs font-bold text-white">
+              View on Map
+            </Text>
+          </Pressable>
+
+          {totalCount > 0 ? (
+            <>
               <Pressable
                 onPress={handleShareTrip}
-                className="mr-1.5 h-9 w-9 items-center justify-center rounded-xl border border-blue-200 bg-blue-50">
-                <Share2 size={15} color="#2563eb" />
+                className="mr-2 h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white">
+                <Share2 size={16} color="#2563eb" />
               </Pressable>
-            ) : null}
-
-            <Pressable
-              onPress={handleOpenTripOnMap}
-              className="mr-1.5 flex-row items-center rounded-xl bg-blue-600 px-3 py-2">
-              <Map size={14} color="#ffffff" />
-              <Text className="ml-1 text-xs font-bold text-white">Map</Text>
-            </Pressable>
-
-            {totalCount > 0 ? (
               <Pressable
                 onPress={clearTrip}
-                className="h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white">
-                <Trash2 size={15} color="#dc2626" />
+                className="h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white">
+                <Trash2 size={16} color="#dc2626" />
               </Pressable>
-            ) : null}
-          </View>
+            </>
+          ) : null}
         </View>
 
         <TripProgressBar

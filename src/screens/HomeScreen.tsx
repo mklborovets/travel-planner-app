@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {
+  ChevronRight,
   Heart,
   LocateFixed,
   MapPin,
@@ -67,37 +68,12 @@ export const HomeScreen: React.FC = () => {
   return (
     <SafeAreaView edges={['top']} className="flex-1 bg-slate-50">
       <View className="px-4 pt-3 pb-2">
-        <View className="mb-3 flex-row items-center justify-between">
-          <View className="mr-3 flex-1">
-            <View className="flex-row items-baseline">
-              <Text
-                numberOfLines={1}
-                className="text-2xl font-extrabold text-slate-900">
-                Saved Places
-              </Text>
-              <View className="ml-2 rounded-lg bg-slate-200/80 px-2 py-0.5">
-                <Text
-                  style={{fontVariant: ['tabular-nums']}}
-                  className="text-xs font-bold text-slate-700">
-                  {filteredPlaceCards.length} / {totalPlacesCount}
-                </Text>
-              </View>
-            </View>
-            <Pressable
-              onPress={handleOpenFilterModal}
-              className="mt-1 flex-row items-center self-start">
-              {distanceAnchorMode === 'gps' ? (
-                <LocateFixed size={11} color="#2563eb" />
-              ) : (
-                <MapPin size={11} color="#2563eb" />
-              )}
-              <Text
-                numberOfLines={1}
-                className="ml-1 text-xs font-semibold text-blue-600">
-                From: {activeAnchorLabel}
-              </Text>
-            </Pressable>
-          </View>
+        <View className="mb-2.5 flex-row items-center justify-between">
+          <Text
+            numberOfLines={1}
+            className="mr-3 flex-1 text-2xl font-extrabold text-slate-900">
+            Saved Places
+          </Text>
 
           <View className="flex-shrink-0 flex-row items-center">
             <Pressable
@@ -139,6 +115,41 @@ export const HomeScreen: React.FC = () => {
               <Text className="ml-1 text-xs font-bold text-white">Add</Text>
             </Pressable>
           </View>
+        </View>
+
+        <View className="mb-2.5 flex-row items-center justify-between rounded-xl border border-slate-200 bg-white px-3 py-2">
+          <View className="flex-row items-center">
+            <View className="mr-2 h-2 w-2 rounded-full bg-blue-600" />
+            <Text
+              style={{fontVariant: ['tabular-nums']}}
+              className="text-xs font-semibold text-slate-600">
+              Showing{' '}
+              <Text className="font-extrabold text-slate-900">
+                {filteredPlaceCards.length}
+              </Text>{' '}
+              of{' '}
+              <Text className="font-extrabold text-slate-900">
+                {totalPlacesCount}
+              </Text>{' '}
+              places
+            </Text>
+          </View>
+
+          <Pressable
+            onPress={handleOpenFilterModal}
+            className="flex-row items-center rounded-lg bg-blue-50 px-2.5 py-1">
+            {distanceAnchorMode === 'gps' ? (
+              <LocateFixed size={11} color="#2563eb" />
+            ) : (
+              <MapPin size={11} color="#2563eb" />
+            )}
+            <Text
+              numberOfLines={1}
+              className="mx-1 max-w-[120px] text-xs font-bold text-blue-700">
+              {activeAnchorLabel}
+            </Text>
+            <ChevronRight size={12} color="#2563eb" />
+          </Pressable>
         </View>
 
         <SearchInput

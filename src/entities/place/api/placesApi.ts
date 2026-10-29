@@ -1,6 +1,9 @@
 import axios from 'axios';
 import {apiClient} from '../../../shared/api/client';
-import {calculateBoundingBoxViewbox} from '../../../shared/lib/location';
+import {
+  calculateBoundingBoxViewbox,
+  calculateHaversineDistanceKm,
+} from '../../../shared/lib/location';
 import {
   Coordinates,
   NominatimReverseAddress,
@@ -138,24 +141,33 @@ export const formatConciseNominatimAddress = (
     .map(part => part.trim())
     .filter(Boolean);
 
-  const meaningfulParts = rawParts.filter(
+  const normalizedParts = [...rawParts];
+  if (
+    normalizedParts.length >= 2 &&
+    /^\d+[a-zA-Zа-яА-ЯіІїЇєЄґҐ/-]*$/.test(normalizedParts[0])
+  ) {
+    const houseNum = normalizedParts[0];
+    const streetName = normalizedParts[1];
+    normalizedParts.splice(0, 2, `${streetName}, ${houseNum}`);
+  }
+
+  const meaningfulParts = normalizedParts.filter(
     part => !isAdministrativeNoisePart(part),
   );
 
   if (meaningfulParts.length > 0) {
-    const topParts = meaningfulParts.slice(0, 3);
+    const topParts = meaningfulParts.slice(0, 2);
     const locality = address?.city || address?.town || address?.village;
     if (
       locality &&
-      !topParts.some(part => part.toLowerCase() === locality.toLowerCase()) &&
-      topParts.length < 4
+      !topParts.some(part => part.toLowerCase() === locality.toLowerCase())
     ) {
       return [...topParts, locality].join(', ');
     }
     return topParts.join(', ');
   }
 
-  return rawParts.slice(0, 3).join(', ') || displayName;
+  return normalizedParts.slice(0, 2).join(', ') || displayName;
 };
 
 export const extractPlaceTitleFromNominatim = (
@@ -257,11 +269,15 @@ export const searchNominatimPlaces = async (
     return [];
   }
 
+  const isSpatialBounded =
+    (options?.mode === 'city_radius' || options?.mode === 'near_me') &&
+    Boolean(options?.boundingCenter && options?.radiusKm);
+
   const params: NominatimQueryParams = {
     q: trimmed,
     format: 'json',
     addressdetails: 1,
-    limit: 15,
+    limit: isSpatialBounded ? 30 : 15,
   };
 
   if (options?.mode === 'country' && options.countryCode) {
@@ -270,9 +286,9 @@ export const searchNominatimPlaces = async (
       params.countrycodes = cleanCode;
     }
   } else if (
-    (options?.mode === 'city_radius' || options?.mode === 'near_me') &&
-    options.boundingCenter &&
-    options.radiusKm
+    isSpatialBounded &&
+    options?.boundingCenter &&
+    options?.radiusKm
   ) {
     params.viewbox = calculateBoundingBoxViewbox(
       options.boundingCenter,
@@ -284,6 +300,24 @@ export const searchNominatimPlaces = async (
   const response = await apiClient.get<NominatimSearchResult[]>('/search', {
     params,
   });
+
+  if (isSpatialBounded && options?.boundingCenter && options?.radiusKm) {
+    const center = options.boundingCenter;
+    const maxRadiusKm = options.radiusKm;
+    return response.data.filter(item => {
+      const lat = Number.parseFloat(item.lat);
+      const lon = Number.parseFloat(item.lon);
+      if (Number.isNaN(lat) || Number.isNaN(lon)) {
+        return false;
+      }
+      const distKm = calculateHaversineDistanceKm(center, {
+        latitude: lat,
+        longitude: lon,
+      });
+      return distKm <= maxRadiusKm;
+    });
+  }
+
   return response.data;
 };
 

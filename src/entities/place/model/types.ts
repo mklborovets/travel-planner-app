@@ -66,7 +66,7 @@ export type SearchScopeMode =
   | 'city_radius'
   | 'near_me';
 
-export type SearchRadiusKm = 5 | 15 | 30 | 50;
+export type SearchRadiusKm = 2 | 5 | 10 | 25;
 
 export interface NominatimSearchOptions {
   mode: SearchScopeMode;
