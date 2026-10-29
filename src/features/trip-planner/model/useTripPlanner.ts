@@ -227,6 +227,7 @@ export const useTripPlanner = () => {
       navigation.navigate('MapTab', {
         focusCoordinates: coordinates,
         selectedPlaceId: placeId,
+        focusTimestamp: Date.now(),
       });
     },
     [navigation],
@@ -238,6 +239,7 @@ export const useTripPlanner = () => {
       navigation.navigate('MapTab', {
         focusCoordinates: firstUnvisited.coordinates,
         selectedPlaceId: firstUnvisited.placeId,
+        focusTimestamp: Date.now(),
       });
       return;
     }

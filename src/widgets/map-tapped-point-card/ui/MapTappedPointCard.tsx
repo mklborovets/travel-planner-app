@@ -1,12 +1,16 @@
 import React from 'react';
 import {ActivityIndicator, Pressable, Text, View} from 'react-native';
-import {Compass, MapPin, Plus, X} from 'lucide-react-native';
+import {BookmarkPlus, Compass, MapPin, Plus, X} from 'lucide-react-native';
 
 export interface MapTappedPointCardProps {
   title: string;
   address: string;
+  categoryLabel: string;
+  categoryBadgeClassName: string;
+  categoryTextClassName: string;
   formattedCoordinates: string;
   isLoadingAddress: boolean;
+  onQuickSavePlace: () => void;
   onAddPlace: () => void;
   onClose: () => void;
 }
@@ -14,19 +18,31 @@ export interface MapTappedPointCardProps {
 export const MapTappedPointCard: React.FC<MapTappedPointCardProps> = ({
   title,
   address,
+  categoryLabel,
+  categoryBadgeClassName,
+  categoryTextClassName,
   formattedCoordinates,
   isLoadingAddress,
+  onQuickSavePlace,
   onAddPlace,
   onClose,
 }) => {
   return (
     <View className="absolute right-4 bottom-5 left-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-lg">
       <View className="mb-2 flex-row items-center justify-between">
-        <View className="flex-row items-center rounded-full bg-slate-900 px-2.5 py-1">
-          <Compass size={12} color="#ffffff" />
-          <Text className="ml-1.5 text-xs font-bold text-white">
-            Selected Map Point
-          </Text>
+        <View className="flex-row items-center">
+          <View className="flex-row items-center rounded-full bg-slate-900 px-2.5 py-1">
+            <Compass size={12} color="#ffffff" />
+            <Text className="ml-1.5 text-xs font-bold text-white">
+              Map Point
+            </Text>
+          </View>
+          <View
+            className={`ml-2 rounded-full px-2.5 py-0.5 ${categoryBadgeClassName}`}>
+            <Text className={`text-xs font-semibold ${categoryTextClassName}`}>
+              {categoryLabel}
+            </Text>
+          </View>
         </View>
         <Pressable
           onPress={onClose}
@@ -40,7 +56,7 @@ export const MapTappedPointCard: React.FC<MapTappedPointCardProps> = ({
         <View className="my-2 flex-row items-center">
           <ActivityIndicator size="small" color="#2563eb" />
           <Text className="ml-2.5 text-xs font-medium text-slate-600">
-            Resolving address via Nominatim Reverse Geocoding...
+            Resolving place & address from OpenStreetMap...
           </Text>
         </View>
       ) : (
@@ -61,19 +77,30 @@ export const MapTappedPointCard: React.FC<MapTappedPointCardProps> = ({
         </>
       )}
 
-      <Text className="mt-1.5 mb-3.5 text-[11px] font-medium text-slate-400">
+      <Text className="mt-1.5 mb-3 text-[11px] font-medium text-slate-400">
         Coordinates: {formattedCoordinates}
       </Text>
 
-      <Pressable
-        onPress={onAddPlace}
-        className="flex-row items-center justify-center rounded-xl bg-blue-600 py-3">
-        <Plus size={16} color="#ffffff" />
-        <Text className="ml-1.5 text-sm font-bold text-white">
-          Add This Place
-        </Text>
-      </Pressable>
+      <View className="flex-row">
+        <Pressable
+          onPress={onQuickSavePlace}
+          disabled={isLoadingAddress}
+          className="mr-2 flex-1 flex-row items-center justify-center rounded-xl border border-emerald-200 bg-emerald-600 py-3">
+          <BookmarkPlus size={16} color="#ffffff" />
+          <Text className="ml-1.5 text-xs font-bold text-white">
+            Quick Save
+          </Text>
+        </Pressable>
+
+        <Pressable
+          onPress={onAddPlace}
+          className="ml-2 flex-1 flex-row items-center justify-center rounded-xl bg-blue-600 py-3">
+          <Plus size={16} color="#ffffff" />
+          <Text className="ml-1.5 text-xs font-bold text-white">
+            Edit & Add
+          </Text>
+        </Pressable>
+      </View>
     </View>
   );
 };
-

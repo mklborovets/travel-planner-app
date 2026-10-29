@@ -1,5 +1,9 @@
 import {useCallback, useEffect, useMemo, useRef, useState} from 'react';
-import MapView, {MapPressEvent, Region} from 'react-native-maps';
+import MapView, {
+  MapPressEvent,
+  PoiClickEvent,
+  Region,
+} from 'react-native-maps';
 import {
   CompositeNavigationProp,
   RouteProp,
@@ -8,9 +12,16 @@ import {
 } from '@react-navigation/native';
 import {BottomTabNavigationProp} from '@react-navigation/bottom-tabs';
 import {NativeStackNavigationProp} from '@react-navigation/native-stack';
-import {reverseGeocodeCoordinates} from '../../../entities/place/api/placesApi';
+import {
+  fetchStreetRouteSegment,
+  reverseGeocodeCoordinates,
+} from '../../../entities/place/api/placesApi';
 import {usePlacesStore} from '../../../entities/place/model/placesStore';
-import {Coordinates, Place} from '../../../entities/place/model/types';
+import {
+  Coordinates,
+  Place,
+  PlaceCategory,
+} from '../../../entities/place/model/types';
 import {useSettingsStore} from '../../../entities/settings/model/settingsStore';
 import {useTripStore} from '../../../entities/trip/model/tripStore';
 import {CATEGORY_MAP} from '../../../shared/config/categories';
@@ -60,7 +71,17 @@ export interface TappedMapPointState {
   formattedCoordinates: string;
   title: string;
   address: string;
+  category: PlaceCategory;
+  categoryLabel: string;
+  categoryBadgeClassName: string;
+  categoryTextClassName: string;
   isLoadingAddress: boolean;
+}
+
+export interface RouteSegmentViewModel {
+  id: string;
+  coordinates: Coordinates[];
+  isCompleted: boolean;
 }
 
 export const useMapExplorer = () => {
@@ -69,6 +90,7 @@ export const useMapExplorer = () => {
   const mapRef = useRef<MapView | null>(null);
 
   const places = usePlacesStore(state => state.places);
+  const addPlace = usePlacesStore(state => state.addPlace);
   const toggleFavorite = usePlacesStore(state => state.toggleFavorite);
   const tripItems = useTripStore(state => state.items);
   const mapTheme = useSettingsStore(state => state.mapTheme);
@@ -84,6 +106,9 @@ export const useMapExplorer = () => {
   );
   const [tappedPoint, setTappedPoint] = useState<TappedMapPointState | null>(
     null,
+  );
+  const [routeSegments, setRouteSegments] = useState<RouteSegmentViewModel[]>(
+    [],
   );
 
   const initialRegion: Region = useMemo(() => {
@@ -108,13 +133,17 @@ export const useMapExplorer = () => {
       const nextRegion: Region = {
         latitude: route.params.focusCoordinates.latitude,
         longitude: route.params.focusCoordinates.longitude,
-        latitudeDelta: 0.018,
-        longitudeDelta: 0.018,
+        latitudeDelta: 0.015,
+        longitudeDelta: 0.015,
       };
       currentRegionRef.current = nextRegion;
       mapRef.current.animateToRegion(nextRegion, 450);
     }
-  }, [route.params?.focusCoordinates, route.params?.selectedPlaceId]);
+  }, [
+    route.params?.focusCoordinates,
+    route.params?.selectedPlaceId,
+    route.params?.focusTimestamp,
+  ]);
 
   const markers: MapMarkerViewModel[] = useMemo(() => {
     return places.map(place => {
@@ -129,16 +158,82 @@ export const useMapExplorer = () => {
     });
   }, [places]);
 
-  const routeCoordinates: Coordinates[] = useMemo(() => {
+  const orderedTripStops = useMemo(() => {
     const placesById: Record<string, Place> = {};
     places.forEach(place => {
       placesById[place.id] = place;
     });
     return [...tripItems]
       .sort((first, second) => first.order - second.order)
-      .map(item => placesById[item.placeId]?.coordinates)
-      .filter((coords): coords is Coordinates => Boolean(coords));
+      .map(item => {
+        const place = placesById[item.placeId];
+        if (!place) {
+          return null;
+        }
+        return {
+          placeId: item.placeId,
+          isVisited: item.isVisited,
+          coordinates: place.coordinates,
+        };
+      })
+      .filter(
+        (
+          stop,
+        ): stop is {
+          placeId: string;
+          isVisited: boolean;
+          coordinates: Coordinates;
+        } => Boolean(stop),
+      );
   }, [places, tripItems]);
+
+  useEffect(() => {
+    if (orderedTripStops.length < 2) {
+      setRouteSegments([]);
+      return;
+    }
+
+    let isCancelled = false;
+
+    const fallbackSegments: RouteSegmentViewModel[] = [];
+    for (let index = 0; index < orderedTripStops.length - 1; index += 1) {
+      const fromStop = orderedTripStops[index];
+      const toStop = orderedTripStops[index + 1];
+      fallbackSegments.push({
+        id: `${fromStop.placeId}->${toStop.placeId}-${index}`,
+        coordinates: [fromStop.coordinates, toStop.coordinates],
+        isCompleted: fromStop.isVisited && toStop.isVisited,
+      });
+    }
+    setRouteSegments(fallbackSegments);
+
+    const loadStreetSegments = async () => {
+      const resolved = await Promise.all(
+        fallbackSegments.map(async (segment, index) => {
+          const fromStop = orderedTripStops[index];
+          const toStop = orderedTripStops[index + 1];
+          const streetCoords = await fetchStreetRouteSegment(
+            fromStop.coordinates,
+            toStop.coordinates,
+          );
+          return {
+            id: segment.id,
+            coordinates: streetCoords,
+            isCompleted: fromStop.isVisited && toStop.isVisited,
+          };
+        }),
+      );
+      if (!isCancelled) {
+        setRouteSegments(resolved);
+      }
+    };
+
+    loadStreetSegments();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [orderedTripStops]);
 
   const selectedPreview: SelectedPlacePreviewViewModel | null = useMemo(() => {
     if (!selectedPlaceId) {
@@ -167,6 +262,19 @@ export const useMapExplorer = () => {
 
   const handleRegionChangeComplete = useCallback((region: Region) => {
     currentRegionRef.current = region;
+  }, []);
+
+  const handleResetNorth = useCallback(() => {
+    if (!mapRef.current) {
+      return;
+    }
+    mapRef.current.animateCamera(
+      {
+        heading: 0,
+        pitch: 0,
+      },
+      {duration: 300},
+    );
   }, []);
 
   const handleZoomIn = useCallback(() => {
@@ -208,55 +316,102 @@ export const useMapExplorer = () => {
     setTappedPoint(null);
   }, []);
 
-  const handleMapPress = useCallback(async (event: MapPressEvent) => {
-    if (event.nativeEvent.action === 'marker-press') {
+  const resolvePointAtCoordinates = useCallback(
+    async (coordinates: Coordinates, poiHintName?: string) => {
+      const formatted = formatCoordinates(coordinates);
+      const cleanHint = poiHintName?.replace(/\n/g, ' ').trim();
+      const defaultCategoryConfig = CATEGORY_MAP.sightseeing;
+
+      setSelectedPlaceId(null);
+      setTappedPoint({
+        coordinates,
+        formattedCoordinates: formatted,
+        title: cleanHint || 'Pinned Location',
+        address: formatted,
+        category: 'sightseeing',
+        categoryLabel: defaultCategoryConfig.label,
+        categoryBadgeClassName: defaultCategoryConfig.badgeClassName,
+        categoryTextClassName: defaultCategoryConfig.textClassName,
+        isLoadingAddress: true,
+      });
+
+      try {
+        const reversed = await reverseGeocodeCoordinates(
+          coordinates,
+          cleanHint,
+        );
+        const categoryConfig = CATEGORY_MAP[reversed.category];
+        setTappedPoint(prev => {
+          if (
+            !prev ||
+            prev.coordinates.latitude !== coordinates.latitude ||
+            prev.coordinates.longitude !== coordinates.longitude
+          ) {
+            return prev;
+          }
+          return {
+            ...prev,
+            title: reversed.title,
+            address: reversed.address,
+            category: reversed.category,
+            categoryLabel: categoryConfig.label,
+            categoryBadgeClassName: categoryConfig.badgeClassName,
+            categoryTextClassName: categoryConfig.textClassName,
+            isLoadingAddress: false,
+          };
+        });
+      } catch {
+        setTappedPoint(prev => {
+          if (!prev) {
+            return null;
+          }
+          return {
+            ...prev,
+            isLoadingAddress: false,
+          };
+        });
+      }
+    },
+    [],
+  );
+
+  const handleMapPress = useCallback(
+    async (event: MapPressEvent) => {
+      if (event.nativeEvent.action === 'marker-press') {
+        return;
+      }
+      if (Date.now() - lastMarkerPressTimeRef.current < 350) {
+        return;
+      }
+      await resolvePointAtCoordinates(event.nativeEvent.coordinate);
+    },
+    [resolvePointAtCoordinates],
+  );
+
+  const handlePoiPress = useCallback(
+    async (event: PoiClickEvent) => {
+      lastMarkerPressTimeRef.current = Date.now();
+      await resolvePointAtCoordinates(
+        event.nativeEvent.coordinate,
+        event.nativeEvent.name,
+      );
+    },
+    [resolvePointAtCoordinates],
+  );
+
+  const handleQuickSaveTappedPlace = useCallback(() => {
+    if (!tappedPoint) {
       return;
     }
-    if (Date.now() - lastMarkerPressTimeRef.current < 350) {
-      return;
-    }
-
-    const coordinates = event.nativeEvent.coordinate;
-    const formatted = formatCoordinates(coordinates);
-
-    setSelectedPlaceId(null);
-    setTappedPoint({
-      coordinates,
-      formattedCoordinates: formatted,
-      title: 'Pinned Location',
-      address: formatted,
-      isLoadingAddress: true,
+    const created = addPlace({
+      title: tappedPoint.title || 'Pinned Location',
+      address: tappedPoint.address || tappedPoint.formattedCoordinates,
+      category: tappedPoint.category,
+      coordinates: tappedPoint.coordinates,
     });
-
-    try {
-      const reversed = await reverseGeocodeCoordinates(coordinates);
-      setTappedPoint(prev => {
-        if (
-          !prev ||
-          prev.coordinates.latitude !== coordinates.latitude ||
-          prev.coordinates.longitude !== coordinates.longitude
-        ) {
-          return prev;
-        }
-        return {
-          ...prev,
-          title: reversed.title,
-          address: reversed.address,
-          isLoadingAddress: false,
-        };
-      });
-    } catch {
-      setTappedPoint(prev => {
-        if (!prev) {
-          return null;
-        }
-        return {
-          ...prev,
-          isLoadingAddress: false,
-        };
-      });
-    }
-  }, []);
+    setTappedPoint(null);
+    setSelectedPlaceId(created.id);
+  }, [addPlace, tappedPoint]);
 
   const handleAddTappedPlace = useCallback(() => {
     if (!tappedPoint) {
@@ -267,6 +422,7 @@ export const useMapExplorer = () => {
       initialTitle:
         tappedPoint.title !== 'Pinned Location' ? tappedPoint.title : '',
       initialAddress: tappedPoint.address,
+      initialCategory: tappedPoint.category,
     };
     setTappedPoint(null);
     navigation.navigate('AddPlace', params);
@@ -301,27 +457,31 @@ export const useMapExplorer = () => {
   }, [selectedPlaceId, toggleFavorite]);
 
   const handleOpenAddPlaceHere = useCallback(() => {
-    navigation.navigate('AddPlace', {
-      initialCoordinates: userCoordinates,
-    });
-  }, [navigation, userCoordinates]);
+    navigation.navigate('AddPlace');
+  }, [navigation]);
+
+  const hasBottomCard = Boolean(selectedPreview || tappedPoint);
 
   return {
     mapRef,
     initialRegion,
     markers,
-    routeCoordinates,
+    routeSegments,
     selectedPreview,
     tappedPoint,
+    hasBottomCard,
     isLocationGranted,
     customMapStyle:
       mapTheme === 'dark' ? DARK_MAP_STYLE : STANDARD_MAP_STYLE,
     handleRegionChangeComplete,
+    handleResetNorth,
     handleZoomIn,
     handleZoomOut,
     handleSelectMarker,
     handleClearSelection,
     handleMapPress,
+    handlePoiPress,
+    handleQuickSaveTappedPlace,
     handleAddTappedPlace,
     handleCenterOnUser,
     handleOpenSelectedDetails,

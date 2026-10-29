@@ -1,3 +1,4 @@
+import axios from 'axios';
 import {apiClient} from '../../../shared/api/client';
 import {calculateBoundingBoxViewbox} from '../../../shared/lib/location';
 import {
@@ -288,6 +289,7 @@ export const searchNominatimPlaces = async (
 
 export const reverseGeocodeCoordinates = async (
   coordinates: Coordinates,
+  poiHintName?: string,
 ): Promise<ReverseGeocodedLocation> => {
   const response = await apiClient.get<NominatimReverseResult>('/reverse', {
     params: {
@@ -302,12 +304,15 @@ export const reverseGeocodeCoordinates = async (
   });
 
   const data = response.data;
-  const resolvedTitle = extractPlaceTitleFromNominatim(
-    data.name,
-    data.display_name,
-    data.address,
-    data.namedetails,
-  );
+  const resolvedTitle =
+    poiHintName && poiHintName.trim().length > 0
+      ? poiHintName.trim()
+      : extractPlaceTitleFromNominatim(
+          data.name,
+          data.display_name,
+          data.address,
+          data.namedetails,
+        );
 
   const resolvedAddress = data.display_name
     ? formatConciseNominatimAddress(data.display_name, data.address)
@@ -319,6 +324,7 @@ export const reverseGeocodeCoordinates = async (
     data.address?.amenity,
     data.address?.shop,
     data.address?.tourism,
+    poiHintName,
   ]
     .filter(Boolean)
     .join(' ');
@@ -328,4 +334,57 @@ export const reverseGeocodeCoordinates = async (
     address: resolvedAddress,
     category: inferCategoryFromNominatimType(rawCategorySource),
   };
+};
+
+interface OsrmRouteResponse {
+  code?: string;
+  routes?: {
+    geometry?: {
+      coordinates?: [number, number][];
+    };
+  }[];
+}
+
+const streetSegmentCache = new Map<string, Coordinates[]>();
+
+const buildSegmentCacheKey = (
+  origin: Coordinates,
+  destination: Coordinates,
+): string => {
+  return `${origin.latitude.toFixed(5)},${origin.longitude.toFixed(5)}->${destination.latitude.toFixed(5)},${destination.longitude.toFixed(5)}`;
+};
+
+export const fetchStreetRouteSegment = async (
+  origin: Coordinates,
+  destination: Coordinates,
+): Promise<Coordinates[]> => {
+  const cacheKey = buildSegmentCacheKey(origin, destination);
+  const cached = streetSegmentCache.get(cacheKey);
+  if (cached) {
+    return cached;
+  }
+
+  try {
+    const url = `https://router.project-osrm.org/route/v1/driving/${origin.longitude},${origin.latitude};${destination.longitude},${destination.latitude}`;
+    const response = await axios.get<OsrmRouteResponse>(url, {
+      params: {
+        overview: 'full',
+        geometries: 'geojson',
+      },
+      timeout: 5000,
+    });
+
+    const rawCoords = response.data.routes?.[0]?.geometry?.coordinates;
+    if (Array.isArray(rawCoords) && rawCoords.length >= 2) {
+      const mapped: Coordinates[] = rawCoords.map(pair => ({
+        latitude: pair[1],
+        longitude: pair[0],
+      }));
+      streetSegmentCache.set(cacheKey, mapped);
+      return mapped;
+    }
+  } catch {}
+
+  const fallback = [origin, destination];
+  return fallback;
 };
