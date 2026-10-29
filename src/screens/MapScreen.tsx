@@ -1,22 +1,30 @@
 import React from 'react';
 import {Pressable, Text, View} from 'react-native';
-import MapView from 'react-native-maps';
+import MapView, {Marker, Polyline} from 'react-native-maps';
 import {SafeAreaView} from 'react-native-safe-area-context';
-import {LocateFixed, Plus} from 'lucide-react-native';
+import {LocateFixed, Minus, Plus} from 'lucide-react-native';
 import {PlaceMarker} from '../entities/place/ui/PlaceMarker';
 import {useMapExplorer} from '../features/map-explorer/model/useMapExplorer';
 import {MapPlacePreview} from '../widgets/map-place-preview/ui/MapPlacePreview';
+import {MapTappedPointCard} from '../widgets/map-tapped-point-card/ui/MapTappedPointCard';
 
 export const MapScreen: React.FC = () => {
   const {
     mapRef,
     initialRegion,
     markers,
+    routeCoordinates,
     selectedPreview,
+    tappedPoint,
     isLocationGranted,
     customMapStyle,
+    handleRegionChangeComplete,
+    handleZoomIn,
+    handleZoomOut,
     handleSelectMarker,
     handleClearSelection,
+    handleMapPress,
+    handleAddTappedPlace,
     handleCenterOnUser,
     handleOpenSelectedDetails,
     handleToggleSelectedFavorite,
@@ -32,7 +40,17 @@ export const MapScreen: React.FC = () => {
         showsUserLocation={isLocationGranted}
         showsMyLocationButton={false}
         customMapStyle={customMapStyle}
-        onPress={handleClearSelection}>
+        onRegionChangeComplete={handleRegionChangeComplete}
+        onPress={handleMapPress}>
+        {routeCoordinates.length >= 2 ? (
+          <Polyline
+            coordinates={routeCoordinates}
+            strokeColor="#2563eb"
+            strokeWidth={4}
+            lineDashPattern={[6, 4]}
+          />
+        ) : null}
+
         {markers.map(marker => (
           <PlaceMarker
             key={marker.id}
@@ -43,6 +61,15 @@ export const MapScreen: React.FC = () => {
             onPress={() => handleSelectMarker(marker.id)}
           />
         ))}
+
+        {tappedPoint ? (
+          <Marker
+            coordinate={tappedPoint.coordinates}
+            title={tappedPoint.title}
+            description={tappedPoint.address}
+            pinColor="#0f172a"
+          />
+        ) : null}
       </MapView>
 
       <SafeAreaView
@@ -57,7 +84,7 @@ export const MapScreen: React.FC = () => {
               Places Map
             </Text>
             <Text className="text-xs font-medium text-slate-500">
-              {markers.length} saved markers
+              {markers.length} markers • Tap map to pin
             </Text>
           </View>
 
@@ -76,6 +103,21 @@ export const MapScreen: React.FC = () => {
         </View>
       </SafeAreaView>
 
+      <View
+        pointerEvents="box-none"
+        className="absolute right-4 top-32 items-center">
+        <Pressable
+          onPress={handleZoomIn}
+          className="mb-2 h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 bg-white/95 shadow-sm">
+          <Plus size={20} color="#0f172a" />
+        </Pressable>
+        <Pressable
+          onPress={handleZoomOut}
+          className="h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 bg-white/95 shadow-sm">
+          <Minus size={20} color="#0f172a" />
+        </Pressable>
+      </View>
+
       {selectedPreview ? (
         <MapPlacePreview
           title={selectedPreview.title}
@@ -88,6 +130,17 @@ export const MapScreen: React.FC = () => {
           onClose={handleClearSelection}
           onOpenDetails={handleOpenSelectedDetails}
           onToggleFavorite={handleToggleSelectedFavorite}
+        />
+      ) : null}
+
+      {!selectedPreview && tappedPoint ? (
+        <MapTappedPointCard
+          title={tappedPoint.title}
+          address={tappedPoint.address}
+          formattedCoordinates={tappedPoint.formattedCoordinates}
+          isLoadingAddress={tappedPoint.isLoadingAddress}
+          onAddPlace={handleAddTappedPlace}
+          onClose={handleClearSelection}
         />
       ) : null}
     </View>

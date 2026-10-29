@@ -35,6 +35,8 @@ export const useAddPlaceForm = () => {
 
   const initialCoordinates =
     route.params?.initialCoordinates ?? DEFAULT_COORDINATES;
+  const initialTitle = route.params?.initialTitle ?? '';
+  const initialAddress = route.params?.initialAddress ?? '';
 
   const {
     control,
@@ -45,8 +47,8 @@ export const useAddPlaceForm = () => {
   } = useForm<PlaceFormValues>({
     resolver: zodResolver(placeFormSchema),
     defaultValues: {
-      title: '',
-      address: '',
+      title: initialTitle,
+      address: initialAddress,
       description: '',
       category: 'sightseeing',
       latitude: initialCoordinates.latitude.toFixed(5),

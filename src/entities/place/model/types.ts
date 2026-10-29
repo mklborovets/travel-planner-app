@@ -37,6 +37,31 @@ export interface NominatimSearchResult {
   name?: string;
 }
 
+export interface NominatimReverseAddress {
+  road?: string;
+  house_number?: string;
+  pedestrian?: string;
+  suburb?: string;
+  city?: string;
+  town?: string;
+  village?: string;
+  state?: string;
+  country?: string;
+}
+
+export interface NominatimReverseResult {
+  place_id?: number;
+  display_name?: string;
+  name?: string;
+  type?: string;
+  address?: NominatimReverseAddress;
+}
+
+export interface ReverseGeocodedLocation {
+  title: string;
+  address: string;
+}
+
 export interface CreatePlacePayload {
   title: string;
   address: string;

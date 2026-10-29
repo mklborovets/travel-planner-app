@@ -3,9 +3,7 @@ import {Coordinates} from '../../entities/place/model/types';
 
 export type MainTabParamList = {
   HomeTab: undefined;
-  MapTab:
-    | {focusCoordinates?: Coordinates; selectedPlaceId?: string}
-    | undefined;
+  MapTab: {focusCoordinates?: Coordinates; selectedPlaceId?: string} | undefined;
   SearchTab: undefined;
   TripTab: undefined;
 };
@@ -13,6 +11,11 @@ export type MainTabParamList = {
 export type RootStackParamList = {
   MainTabs: NavigatorScreenParams<MainTabParamList>;
   PlaceDetails: {placeId: string};
-  AddPlace: {initialCoordinates?: Coordinates} | undefined;
+  AddPlace:
+    | {
+        initialCoordinates?: Coordinates;
+        initialTitle?: string;
+        initialAddress?: string;
+      }
+    | undefined;
 };
-

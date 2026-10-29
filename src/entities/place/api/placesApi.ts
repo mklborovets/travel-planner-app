@@ -1,8 +1,11 @@
 import {apiClient} from '../../../shared/api/client';
 import {
+  Coordinates,
+  NominatimReverseResult,
   NominatimSearchResult,
   Place,
   PlaceCategory,
+  ReverseGeocodedLocation,
 } from '../model/types';
 
 export const inferCategoryFromNominatimType = (
@@ -139,4 +142,50 @@ export const searchNominatimPlaces = async (
     },
   });
   return response.data;
+};
+
+export const reverseGeocodeCoordinates = async (
+  coordinates: Coordinates,
+): Promise<ReverseGeocodedLocation> => {
+  const response = await apiClient.get<NominatimReverseResult>('/reverse', {
+    params: {
+      lat: coordinates.latitude,
+      lon: coordinates.longitude,
+      format: 'json',
+      addressdetails: 1,
+    },
+  });
+
+  const data = response.data;
+  const addressObj = data.address;
+  const roadName = addressObj?.road || addressObj?.pedestrian;
+  const houseNumber = addressObj?.house_number;
+  const locality =
+    addressObj?.city || addressObj?.town || addressObj?.village || '';
+
+  const streetPart = roadName
+    ? houseNumber
+      ? `${roadName}, ${houseNumber}`
+      : roadName
+    : '';
+
+  const rawDisplayParts = data.display_name
+    ? data.display_name.split(',').map(part => part.trim())
+    : [];
+
+  const resolvedTitle =
+    data.name && data.name.trim().length > 0
+      ? data.name.trim()
+      : streetPart || rawDisplayParts[0] || 'Pinned Location';
+
+  const resolvedAddress =
+    streetPart && locality
+      ? `${streetPart}, ${locality}`
+      : data.display_name ||
+        `${coordinates.latitude.toFixed(5)}, ${coordinates.longitude.toFixed(5)}`;
+
+  return {
+    title: resolvedTitle,
+    address: resolvedAddress,
+  };
 };

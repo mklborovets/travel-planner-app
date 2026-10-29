@@ -1,5 +1,5 @@
 import {useCallback, useEffect, useMemo, useRef, useState} from 'react';
-import MapView, {Region} from 'react-native-maps';
+import MapView, {MapPressEvent, Region} from 'react-native-maps';
 import {
   CompositeNavigationProp,
   RouteProp,
@@ -8,9 +8,11 @@ import {
 } from '@react-navigation/native';
 import {BottomTabNavigationProp} from '@react-navigation/bottom-tabs';
 import {NativeStackNavigationProp} from '@react-navigation/native-stack';
+import {reverseGeocodeCoordinates} from '../../../entities/place/api/placesApi';
 import {usePlacesStore} from '../../../entities/place/model/placesStore';
-import {Coordinates} from '../../../entities/place/model/types';
+import {Coordinates, Place} from '../../../entities/place/model/types';
 import {useSettingsStore} from '../../../entities/settings/model/settingsStore';
+import {useTripStore} from '../../../entities/trip/model/tripStore';
 import {CATEGORY_MAP} from '../../../shared/config/categories';
 import {
   DARK_MAP_STYLE,
@@ -19,6 +21,7 @@ import {
 import {
   calculateHaversineDistanceKm,
   DEFAULT_MAP_DELTA,
+  formatCoordinates,
   formatDistance,
 } from '../../../shared/lib/location';
 import {useCurrentLocation} from '../../../shared/lib/useCurrentLocation';
@@ -52,6 +55,14 @@ export interface SelectedPlacePreviewViewModel {
   isFavorite: boolean;
 }
 
+export interface TappedMapPointState {
+  coordinates: Coordinates;
+  formattedCoordinates: string;
+  title: string;
+  address: string;
+  isLoadingAddress: boolean;
+}
+
 export const useMapExplorer = () => {
   const route = useRoute<MapScreenRouteProp>();
   const navigation = useNavigation<MapScreenNavigationProp>();
@@ -59,6 +70,7 @@ export const useMapExplorer = () => {
 
   const places = usePlacesStore(state => state.places);
   const toggleFavorite = usePlacesStore(state => state.toggleFavorite);
+  const tripItems = useTripStore(state => state.items);
   const mapTheme = useSettingsStore(state => state.mapTheme);
 
   const {
@@ -69,6 +81,9 @@ export const useMapExplorer = () => {
 
   const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(
     route.params?.selectedPlaceId ?? null,
+  );
+  const [tappedPoint, setTappedPoint] = useState<TappedMapPointState | null>(
+    null,
   );
 
   const initialRegion: Region = useMemo(() => {
@@ -81,20 +96,23 @@ export const useMapExplorer = () => {
     };
   }, [route.params?.focusCoordinates, userCoordinates]);
 
+  const currentRegionRef = useRef<Region>(initialRegion);
+  const lastMarkerPressTimeRef = useRef<number>(0);
+
   useEffect(() => {
     if (route.params?.selectedPlaceId) {
       setSelectedPlaceId(route.params.selectedPlaceId);
+      setTappedPoint(null);
     }
     if (route.params?.focusCoordinates && mapRef.current) {
-      mapRef.current.animateToRegion(
-        {
-          latitude: route.params.focusCoordinates.latitude,
-          longitude: route.params.focusCoordinates.longitude,
-          latitudeDelta: 0.018,
-          longitudeDelta: 0.018,
-        },
-        450,
-      );
+      const nextRegion: Region = {
+        latitude: route.params.focusCoordinates.latitude,
+        longitude: route.params.focusCoordinates.longitude,
+        latitudeDelta: 0.018,
+        longitudeDelta: 0.018,
+      };
+      currentRegionRef.current = nextRegion;
+      mapRef.current.animateToRegion(nextRegion, 450);
     }
   }, [route.params?.focusCoordinates, route.params?.selectedPlaceId]);
 
@@ -110,6 +128,17 @@ export const useMapExplorer = () => {
       };
     });
   }, [places]);
+
+  const routeCoordinates: Coordinates[] = useMemo(() => {
+    const placesById: Record<string, Place> = {};
+    places.forEach(place => {
+      placesById[place.id] = place;
+    });
+    return [...tripItems]
+      .sort((first, second) => first.order - second.order)
+      .map(item => placesById[item.placeId]?.coordinates)
+      .filter((coords): coords is Coordinates => Boolean(coords));
+  }, [places, tripItems]);
 
   const selectedPreview: SelectedPlacePreviewViewModel | null = useMemo(() => {
     if (!selectedPlaceId) {
@@ -136,28 +165,126 @@ export const useMapExplorer = () => {
     };
   }, [selectedPlaceId, places, userCoordinates]);
 
+  const handleRegionChangeComplete = useCallback((region: Region) => {
+    currentRegionRef.current = region;
+  }, []);
+
+  const handleZoomIn = useCallback(() => {
+    if (!mapRef.current) {
+      return;
+    }
+    const current = currentRegionRef.current;
+    const nextRegion: Region = {
+      ...current,
+      latitudeDelta: Math.max(current.latitudeDelta * 0.5, 0.001),
+      longitudeDelta: Math.max(current.longitudeDelta * 0.5, 0.001),
+    };
+    currentRegionRef.current = nextRegion;
+    mapRef.current.animateToRegion(nextRegion, 250);
+  }, []);
+
+  const handleZoomOut = useCallback(() => {
+    if (!mapRef.current) {
+      return;
+    }
+    const current = currentRegionRef.current;
+    const nextRegion: Region = {
+      ...current,
+      latitudeDelta: Math.min(current.latitudeDelta * 2, 60),
+      longitudeDelta: Math.min(current.longitudeDelta * 2, 60),
+    };
+    currentRegionRef.current = nextRegion;
+    mapRef.current.animateToRegion(nextRegion, 250);
+  }, []);
+
   const handleSelectMarker = useCallback((placeId: string) => {
+    lastMarkerPressTimeRef.current = Date.now();
+    setTappedPoint(null);
     setSelectedPlaceId(placeId);
   }, []);
 
   const handleClearSelection = useCallback(() => {
     setSelectedPlaceId(null);
+    setTappedPoint(null);
   }, []);
 
-  const handleCenterOnUser = useCallback(async () => {
-    await refreshLocation();
-    if (mapRef.current) {
-      mapRef.current.animateToRegion(
-        {
-          latitude: userCoordinates.latitude,
-          longitude: userCoordinates.longitude,
-          latitudeDelta: DEFAULT_MAP_DELTA.latitudeDelta,
-          longitudeDelta: DEFAULT_MAP_DELTA.longitudeDelta,
-        },
-        450,
-      );
+  const handleMapPress = useCallback(async (event: MapPressEvent) => {
+    if (event.nativeEvent.action === 'marker-press') {
+      return;
     }
-  }, [refreshLocation, userCoordinates]);
+    if (Date.now() - lastMarkerPressTimeRef.current < 350) {
+      return;
+    }
+
+    const coordinates = event.nativeEvent.coordinate;
+    const formatted = formatCoordinates(coordinates);
+
+    setSelectedPlaceId(null);
+    setTappedPoint({
+      coordinates,
+      formattedCoordinates: formatted,
+      title: 'Pinned Location',
+      address: formatted,
+      isLoadingAddress: true,
+    });
+
+    try {
+      const reversed = await reverseGeocodeCoordinates(coordinates);
+      setTappedPoint(prev => {
+        if (
+          !prev ||
+          prev.coordinates.latitude !== coordinates.latitude ||
+          prev.coordinates.longitude !== coordinates.longitude
+        ) {
+          return prev;
+        }
+        return {
+          ...prev,
+          title: reversed.title,
+          address: reversed.address,
+          isLoadingAddress: false,
+        };
+      });
+    } catch {
+      setTappedPoint(prev => {
+        if (!prev) {
+          return null;
+        }
+        return {
+          ...prev,
+          isLoadingAddress: false,
+        };
+      });
+    }
+  }, []);
+
+  const handleAddTappedPlace = useCallback(() => {
+    if (!tappedPoint) {
+      return;
+    }
+    const params = {
+      initialCoordinates: tappedPoint.coordinates,
+      initialTitle:
+        tappedPoint.title !== 'Pinned Location' ? tappedPoint.title : '',
+      initialAddress: tappedPoint.address,
+    };
+    setTappedPoint(null);
+    navigation.navigate('AddPlace', params);
+  }, [navigation, tappedPoint]);
+
+  const handleCenterOnUser = useCallback(async () => {
+    const latest = await refreshLocation();
+    if (mapRef.current) {
+      const nextRegion: Region = {
+        latitude: latest.latitude,
+        longitude: latest.longitude,
+        latitudeDelta: DEFAULT_MAP_DELTA.latitudeDelta,
+        longitudeDelta: DEFAULT_MAP_DELTA.longitudeDelta,
+      };
+      currentRegionRef.current = nextRegion;
+      mapRef.current.animateToRegion(nextRegion, 450);
+    }
+  }, [refreshLocation]);
 
   const handleOpenSelectedDetails = useCallback(() => {
     if (!selectedPlaceId) {
@@ -183,16 +310,22 @@ export const useMapExplorer = () => {
     mapRef,
     initialRegion,
     markers,
+    routeCoordinates,
     selectedPreview,
+    tappedPoint,
     isLocationGranted,
     customMapStyle:
       mapTheme === 'dark' ? DARK_MAP_STYLE : STANDARD_MAP_STYLE,
+    handleRegionChangeComplete,
+    handleZoomIn,
+    handleZoomOut,
     handleSelectMarker,
     handleClearSelection,
+    handleMapPress,
+    handleAddTappedPlace,
     handleCenterOnUser,
     handleOpenSelectedDetails,
     handleToggleSelectedFavorite,
     handleOpenAddPlaceHere,
   };
 };
-
