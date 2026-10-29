@@ -12,6 +12,21 @@ export interface Trip {
   createdAt: number;
 }
 
+export interface TripSummaryOption {
+  id: string;
+  title: string;
+  stopsCount: number;
+  visitedCount: number;
+  isActive: boolean;
+}
+
+export interface RouteStartCandidate {
+  placeId: string;
+  title: string;
+  address: string;
+  distanceFromUserLabel: string;
+}
+
 export interface TripState {
   trips: Trip[];
   activeTripId: string;

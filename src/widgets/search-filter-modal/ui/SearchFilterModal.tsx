@@ -34,6 +34,7 @@ export interface SearchFilterModalProps {
   countryCode: string;
   countryPresets: CountryFilterPreset[];
   selectedCityLabel: string;
+  selectedCityPresetId: string | null;
   cityPresets: CityAnchorPreset[];
   customCityInput: string;
   isSearchingCity: boolean;
@@ -56,6 +57,7 @@ export const SearchFilterModal: React.FC<SearchFilterModalProps> = ({
   countryCode,
   countryPresets,
   selectedCityLabel,
+  selectedCityPresetId,
   cityPresets,
   customCityInput,
   isSearchingCity,
@@ -152,8 +154,7 @@ export const SearchFilterModal: React.FC<SearchFilterModalProps> = ({
             </Text>
             <View className="mb-3 flex-row flex-wrap justify-between">
               {countryPresets.map(country => {
-                const isSelected =
-                  countryCode.toLowerCase() === country.code.toLowerCase();
+                const isSelected = countryCode === country.code;
                 return (
                   <Pressable
                     key={country.code}
@@ -200,9 +201,7 @@ export const SearchFilterModal: React.FC<SearchFilterModalProps> = ({
             </Text>
             <View className="mb-2.5 flex-row flex-wrap">
               {cityPresets.map(preset => {
-                const isSelected =
-                  selectedCityLabel.toLowerCase() ===
-                  preset.label.toLowerCase();
+                const isSelected = selectedCityPresetId === preset.id;
                 return (
                   <Pressable
                     key={preset.id}

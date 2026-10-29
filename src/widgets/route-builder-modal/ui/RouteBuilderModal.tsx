@@ -1,14 +1,10 @@
 import React from 'react';
 import {Pressable, ScrollView, Text, View} from 'react-native';
 import {LocateFixed, MapPin, Navigation, Sparkles, X} from 'lucide-react-native';
+import {RouteStartCandidate} from '../../../entities/trip/model/types';
 import {BottomSheetModal} from '../../../shared/ui/BottomSheetModal';
 
-export interface RouteStartCandidate {
-  placeId: string;
-  title: string;
-  address: string;
-  distanceFromUserLabel: string;
-}
+export type {RouteStartCandidate};
 
 export interface RouteBuilderModalProps {
   visible: boolean;

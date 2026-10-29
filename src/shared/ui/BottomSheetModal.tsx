@@ -1,5 +1,6 @@
-import React, {useEffect, useRef} from 'react';
+import React from 'react';
 import {Animated, Modal, Pressable, View} from 'react-native';
+import {useBottomSheetAnimation} from '../lib/useBottomSheetAnimation';
 
 export interface BottomSheetModalProps {
   visible: boolean;
@@ -14,20 +15,7 @@ export const BottomSheetModal: React.FC<BottomSheetModalProps> = ({
   maxHeightClassName = 'max-h-[85%]',
   children,
 }) => {
-  const slideOffset = useRef(new Animated.Value(420)).current;
-
-  useEffect(() => {
-    if (visible) {
-      slideOffset.setValue(420);
-      Animated.spring(slideOffset, {
-        toValue: 0,
-        useNativeDriver: true,
-        damping: 24,
-        stiffness: 240,
-        mass: 0.9,
-      }).start();
-    }
-  }, [visible, slideOffset]);
+  const {slideOffset} = useBottomSheetAnimation(visible);
 
   return (
     <Modal
@@ -46,3 +34,4 @@ export const BottomSheetModal: React.FC<BottomSheetModalProps> = ({
     </Modal>
   );
 };
+

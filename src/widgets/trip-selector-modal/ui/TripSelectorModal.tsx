@@ -9,15 +9,10 @@ import {
   Trash2,
   X,
 } from 'lucide-react-native';
+import {TripSummaryOption} from '../../../entities/trip/model/types';
 import {BottomSheetModal} from '../../../shared/ui/BottomSheetModal';
 
-export interface TripSummaryOption {
-  id: string;
-  title: string;
-  stopsCount: number;
-  visitedCount: number;
-  isActive: boolean;
-}
+export type {TripSummaryOption};
 
 export interface TripSelectorModalProps {
   visible: boolean;

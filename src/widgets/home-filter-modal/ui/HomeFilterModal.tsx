@@ -33,7 +33,7 @@ export interface HomeFilterModalProps {
   onlyFavorites: boolean;
   sortBy: PlaceSortOption;
   distanceAnchorMode: DistanceAnchorMode;
-  activeAnchorLabel: string;
+  selectedCityPresetId: string | null;
   cityPresets: CityAnchorPreset[];
   customCityInput: string;
   isSearchingCity: boolean;
@@ -56,7 +56,7 @@ export const HomeFilterModal: React.FC<HomeFilterModalProps> = ({
   onlyFavorites,
   sortBy,
   distanceAnchorMode,
-  activeAnchorLabel,
+  selectedCityPresetId,
   cityPresets,
   customCityInput,
   isSearchingCity,
@@ -121,10 +121,7 @@ export const HomeFilterModal: React.FC<HomeFilterModalProps> = ({
             </Pressable>
 
             {cityPresets.map(preset => {
-              const isSelected =
-                distanceAnchorMode === 'custom' &&
-                activeAnchorLabel.toLowerCase() ===
-                  preset.label.toLowerCase();
+              const isSelected = selectedCityPresetId === preset.id;
               return (
                 <Pressable
                   key={preset.id}

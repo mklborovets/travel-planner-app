@@ -90,6 +90,18 @@ export const usePlacesSearch = () => {
     return distanceAnchorMode === 'custom' ? customAnchorLabel : 'Current GPS';
   }, [distanceAnchorMode, customAnchorLabel]);
 
+  const selectedCityPresetId = useMemo(() => {
+    const normalizedLabel = selectedCityLabel.trim().toLowerCase();
+    const matchedPreset = DISTANCE_ANCHOR_CITY_PRESETS.find(
+      preset => preset.label.toLowerCase() === normalizedLabel,
+    );
+    return matchedPreset ? matchedPreset.id : null;
+  }, [selectedCityLabel]);
+
+  const handleSelectCountryCode = useCallback((code: string) => {
+    setCountryCode(code.toLowerCase());
+  }, []);
+
   const searchOptions: NominatimSearchOptions = useMemo(() => {
     if (scopeMode === 'country') {
       return {
@@ -278,9 +290,10 @@ export const usePlacesSearch = () => {
     scopeMode,
     setScopeMode,
     countryCode,
-    setCountryCode,
+    setCountryCode: handleSelectCountryCode,
     countryPresets: COUNTRY_FILTER_PRESETS,
     selectedCityLabel,
+    selectedCityPresetId,
     cityPresets: DISTANCE_ANCHOR_CITY_PRESETS,
     customCityInput,
     setCustomCityInput,
