@@ -1,4 +1,5 @@
-import {Coordinates} from '../../entities/place/model/types';
+import {Coordinates, Place} from '../../entities/place/model/types';
+import {TripItem} from '../../entities/trip/model/types';
 
 export const DEFAULT_COORDINATES: Coordinates = {
   latitude: 49.8397,
@@ -57,10 +58,7 @@ export const calculateBoundingBoxViewbox = (
   radiusKm: number,
 ): string => {
   const latDelta = radiusKm / 111.32;
-  const cosLat = Math.max(
-    Math.cos(degreesToRadians(center.latitude)),
-    0.01,
-  );
+  const cosLat = Math.max(Math.cos(degreesToRadians(center.latitude)), 0.01);
   const lonDelta = radiusKm / (111.32 * cosLat);
 
   const minLon = Math.max(center.longitude - lonDelta, -180);
@@ -114,4 +112,59 @@ export const parseCoordinatePairInput = (
     latitude: match[1],
     longitude: match[2],
   };
+};
+
+export const buildNearestNeighborTripOrder = (
+  items: TripItem[],
+  placesById: Record<string, Place>,
+  startPlaceId: string,
+): TripItem[] => {
+  const validItems = items.filter(item => Boolean(placesById[item.placeId]));
+  if (validItems.length <= 1) {
+    return items;
+  }
+
+  const remaining = [...validItems];
+  const startIndex = remaining.findIndex(
+    item => item.placeId === startPlaceId,
+  );
+  const firstItem =
+    startIndex >= 0 ? remaining.splice(startIndex, 1)[0] : remaining.shift()!;
+
+  const orderedChain: TripItem[] = [firstItem];
+
+  while (remaining.length > 0) {
+    const currentLast = orderedChain[orderedChain.length - 1];
+    const currentPlace = placesById[currentLast.placeId];
+    if (!currentPlace) {
+      orderedChain.push(...remaining);
+      break;
+    }
+
+    let closestIdx = 0;
+    let closestDistance = Number.POSITIVE_INFINITY;
+
+    remaining.forEach((candidate, idx) => {
+      const candidatePlace = placesById[candidate.placeId];
+      if (!candidatePlace) {
+        return;
+      }
+      const dist = calculateHaversineDistanceKm(
+        currentPlace.coordinates,
+        candidatePlace.coordinates,
+      );
+      if (dist < closestDistance) {
+        closestDistance = dist;
+        closestIdx = idx;
+      }
+    });
+
+    const nextStop = remaining.splice(closestIdx, 1)[0];
+    orderedChain.push(nextStop);
+  }
+
+  return orderedChain.map((item, index) => ({
+    ...item,
+    order: index,
+  }));
 };

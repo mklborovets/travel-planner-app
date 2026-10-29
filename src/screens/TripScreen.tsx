@@ -2,11 +2,11 @@ import React from 'react';
 import {FlatList, Pressable, Text, TextInput, View} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {
-  ArrowUpDown,
   ChevronDown,
   Map,
   Route,
   Share2,
+  Sparkles,
   Trash2,
 } from 'lucide-react-native';
 import {TripProgressBar} from '../entities/trip/ui/TripProgressBar';
@@ -15,6 +15,7 @@ import {
   useTripPlanner,
 } from '../features/trip-planner/model/useTripPlanner';
 import {EmptyState} from '../shared/ui/EmptyState';
+import {RouteBuilderModal} from '../widgets/route-builder-modal/ui/RouteBuilderModal';
 import {TripItemRow} from '../widgets/trip-item-card/ui/TripItemRow';
 import {TripSelectorModal} from '../widgets/trip-selector-modal/ui/TripSelectorModal';
 
@@ -27,12 +28,23 @@ export const TripScreen: React.FC = () => {
     tripSummaries,
     canDeleteTrips,
     isTripSelectorVisible,
+    isRouteBuilderVisible,
+    isAnyRowDragging,
+    setIsAnyRowDragging,
     newTripTitle,
     setNewTripTitle,
+    importTextInput,
+    setImportTextInput,
+    importError,
+    importSuccessMessage,
+    copiedTripId,
+    routeCandidates,
     handleOpenTripSelector,
     handleCloseTripSelector,
     handleSelectTrip,
     handleCreateNewTrip,
+    handleCopyTripExport,
+    handleImportFromClipboard,
     handleDeleteTrip,
     stops,
     visitedCount,
@@ -41,7 +53,10 @@ export const TripScreen: React.FC = () => {
     toggleVisited,
     handleMoveStopUp,
     handleMoveStopDown,
-    handleSortByDistance,
+    handleOpenRouteBuilder,
+    handleCloseRouteBuilder,
+    handleBuildRouteFromPlace,
+    handleBuildRouteFromNearestToMe,
     handleShareTrip,
     removePlaceFromTrip,
     clearTrip,
@@ -54,10 +69,23 @@ export const TripScreen: React.FC = () => {
   return (
     <SafeAreaView edges={['top']} className="flex-1 bg-slate-50">
       <View className="px-4 pt-3 pb-2">
-        <View className="mb-2 flex-row items-center justify-between">
+        <View className="mb-2">
+          <Text className="text-xs font-bold uppercase tracking-wider text-blue-600">
+            Trip Itinerary
+          </Text>
+          <TextInput
+            value={title}
+            onChangeText={setTitle}
+            placeholder="Enter trip name..."
+            placeholderTextColor="#94a3b8"
+            className="p-0 text-2xl font-extrabold text-slate-900"
+          />
+        </View>
+
+        <View className="mb-3 flex-row items-center justify-between">
           <Pressable
             onPress={handleOpenTripSelector}
-            className="flex-row items-center rounded-xl border border-blue-200 bg-blue-50 px-3 py-1.5">
+            className="flex-row items-center rounded-xl border border-blue-200 bg-blue-50 px-3 py-2">
             <Route size={13} color="#2563eb" />
             <Text className="mx-1.5 text-xs font-bold text-blue-700">
               Switch Trip ({tripSummaries.length})
@@ -68,11 +96,11 @@ export const TripScreen: React.FC = () => {
           <View className="flex-row items-center">
             {totalCount > 1 ? (
               <Pressable
-                onPress={handleSortByDistance}
-                className="mr-2 flex-row items-center rounded-xl border border-slate-200 bg-white px-2.5 py-2">
-                <ArrowUpDown size={14} color="#334155" />
-                <Text className="ml-1 text-xs font-semibold text-slate-700">
-                  Sort by km
+                onPress={handleOpenRouteBuilder}
+                className="mr-1.5 flex-row items-center rounded-xl border border-indigo-200 bg-indigo-50 px-2.5 py-2">
+                <Sparkles size={13} color="#4f46e5" />
+                <Text className="ml-1 text-xs font-bold text-indigo-700">
+                  Build Route
                 </Text>
               </Pressable>
             ) : null}
@@ -80,14 +108,14 @@ export const TripScreen: React.FC = () => {
             {totalCount > 0 ? (
               <Pressable
                 onPress={handleShareTrip}
-                className="mr-2 h-9 w-9 items-center justify-center rounded-xl border border-blue-200 bg-blue-50">
+                className="mr-1.5 h-9 w-9 items-center justify-center rounded-xl border border-blue-200 bg-blue-50">
                 <Share2 size={15} color="#2563eb" />
               </Pressable>
             ) : null}
 
             <Pressable
               onPress={handleOpenTripOnMap}
-              className="mr-2 flex-row items-center rounded-xl bg-blue-600 px-3 py-2">
+              className="mr-1.5 flex-row items-center rounded-xl bg-blue-600 px-3 py-2">
               <Map size={14} color="#ffffff" />
               <Text className="ml-1 text-xs font-bold text-white">Map</Text>
             </Pressable>
@@ -102,16 +130,6 @@ export const TripScreen: React.FC = () => {
           </View>
         </View>
 
-        <View className="mb-3">
-          <TextInput
-            value={title}
-            onChangeText={setTitle}
-            placeholder="Enter trip name..."
-            placeholderTextColor="#94a3b8"
-            className="p-0 text-2xl font-extrabold text-slate-900"
-          />
-        </View>
-
         <TripProgressBar
           visitedCount={visitedCount}
           totalCount={totalCount}
@@ -122,6 +140,7 @@ export const TripScreen: React.FC = () => {
       <FlatList
         data={stops}
         keyExtractor={keyExtractor}
+        scrollEnabled={!isAnyRowDragging}
         contentContainerStyle={{
           paddingHorizontal: 16,
           paddingTop: 8,
@@ -143,6 +162,7 @@ export const TripScreen: React.FC = () => {
             onToggleVisited={() => toggleVisited(item.placeId)}
             onMoveUp={() => handleMoveStopUp(item.placeId)}
             onMoveDown={() => handleMoveStopDown(item.placeId)}
+            onDragStateChange={setIsAnyRowDragging}
             onPressDetails={() => handleOpenPlaceDetails(item.placeId)}
             onPressFocusMap={() =>
               handleFocusStopOnMap(item.placeId, item.coordinates)
@@ -164,12 +184,27 @@ export const TripScreen: React.FC = () => {
         visible={isTripSelectorVisible}
         trips={tripSummaries}
         newTripTitle={newTripTitle}
+        importTextInput={importTextInput}
+        importError={importError}
+        importSuccessMessage={importSuccessMessage}
+        copiedTripId={copiedTripId}
         canDeleteTrips={canDeleteTrips}
         onChangeNewTripTitle={setNewTripTitle}
+        onChangeImportTextInput={setImportTextInput}
         onCreateTrip={handleCreateNewTrip}
+        onImportFromClipboard={handleImportFromClipboard}
+        onCopyTripExport={handleCopyTripExport}
         onSelectTrip={handleSelectTrip}
         onDeleteTrip={handleDeleteTrip}
         onClose={handleCloseTripSelector}
+      />
+
+      <RouteBuilderModal
+        visible={isRouteBuilderVisible}
+        candidates={routeCandidates}
+        onStartFromNearestToMe={handleBuildRouteFromNearestToMe}
+        onStartFromPlace={handleBuildRouteFromPlace}
+        onClose={handleCloseRouteBuilder}
       />
     </SafeAreaView>
   );

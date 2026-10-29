@@ -1,15 +1,15 @@
 import React from 'react';
-import {Pressable, Text, View} from 'react-native';
+import {Animated, Pressable, Text, View} from 'react-native';
 import {
   CheckSquare,
-  ChevronDown,
-  ChevronUp,
+  GripVertical,
   Map,
   MapPin,
   Navigation,
   Square,
   Trash2,
 } from 'lucide-react-native';
+import {useDraggableTripRow} from '../../../features/trip-planner/model/useDraggableTripRow';
 
 export interface TripItemRowProps {
   stepNumber: number;
@@ -25,6 +25,7 @@ export interface TripItemRowProps {
   onToggleVisited: () => void;
   onMoveUp: () => void;
   onMoveDown: () => void;
+  onDragStateChange: (isDragging: boolean) => void;
   onPressDetails: () => void;
   onPressFocusMap: () => void;
   onPressRemove: () => void;
@@ -44,22 +45,46 @@ export const TripItemRow: React.FC<TripItemRowProps> = ({
   onToggleVisited,
   onMoveUp,
   onMoveDown,
+  onDragStateChange,
   onPressDetails,
   onPressFocusMap,
   onPressRemove,
 }) => {
+  const {translateY, isDragging, panHandlers} = useDraggableTripRow({
+    canMoveUp,
+    canMoveDown,
+    onMoveUp,
+    onMoveDown,
+    onDragStateChange,
+  });
+
   return (
-    <View
+    <Animated.View
+      style={{
+        transform: [{translateY}, {scale: isDragging ? 1.02 : 1}],
+        zIndex: isDragging ? 50 : 1,
+      }}
       className={
-        isVisited
-          ? 'mb-3 rounded-2xl border border-emerald-200 bg-emerald-50/40 p-4'
-          : 'mb-3 rounded-2xl border border-slate-200 bg-white p-4'
+        isDragging
+          ? 'mb-3 rounded-2xl border-2 border-blue-600 bg-white p-4 shadow-md'
+          : isVisited
+            ? 'mb-3 rounded-2xl border border-emerald-200 bg-emerald-50/40 p-4'
+            : 'mb-3 rounded-2xl border border-slate-200 bg-white p-4'
       }>
-      <View className="flex-row items-start">
+      <View className="flex-row items-center">
+        <View
+          {...panHandlers}
+          className="mr-2.5 h-10 w-7 items-center justify-center rounded-lg bg-slate-100">
+          <GripVertical
+            size={16}
+            color={isDragging ? '#2563eb' : '#64748b'}
+          />
+        </View>
+
         <Pressable
           onPress={onToggleVisited}
           hitSlop={8}
-          className="mt-0.5 mr-3 items-center justify-center">
+          className="mr-3 items-center justify-center">
           {isVisited ? (
             <CheckSquare size={22} color="#059669" />
           ) : (
@@ -109,31 +134,6 @@ export const TripItemRow: React.FC<TripItemRowProps> = ({
         </Pressable>
 
         <View className="flex-row items-center">
-          <View className="mr-1.5 items-center">
-            <Pressable
-              onPress={onMoveUp}
-              disabled={!canMoveUp}
-              hitSlop={4}
-              className={
-                canMoveUp
-                  ? 'mb-1 h-7 w-7 items-center justify-center rounded-lg bg-slate-100'
-                  : 'mb-1 h-7 w-7 items-center justify-center rounded-lg bg-slate-50 opacity-40'
-              }>
-              <ChevronUp size={14} color="#334155" />
-            </Pressable>
-            <Pressable
-              onPress={onMoveDown}
-              disabled={!canMoveDown}
-              hitSlop={4}
-              className={
-                canMoveDown
-                  ? 'h-7 w-7 items-center justify-center rounded-lg bg-slate-100'
-                  : 'h-7 w-7 items-center justify-center rounded-lg bg-slate-50 opacity-40'
-              }>
-              <ChevronDown size={14} color="#334155" />
-            </Pressable>
-          </View>
-
           <Pressable
             onPress={onPressFocusMap}
             hitSlop={8}
@@ -148,6 +148,6 @@ export const TripItemRow: React.FC<TripItemRowProps> = ({
           </Pressable>
         </View>
       </View>
-    </View>
+    </Animated.View>
   );
 };

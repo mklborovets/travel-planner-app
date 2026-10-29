@@ -8,15 +8,22 @@ import {useSettingsStore} from '../../../entities/settings/model/settingsStore';
 import {useTripStore} from '../../../entities/trip/model/tripStore';
 import {CATEGORY_MAP} from '../../../shared/config/categories';
 import {
+  buildNearestNeighborTripOrder,
   calculateHaversineDistanceKm,
   formatDistance,
 } from '../../../shared/lib/location';
-import {shareTripSummary} from '../../../shared/lib/share';
+import {
+  copyTripExportToClipboard,
+  parseImportedTripText,
+  readTextFromClipboard,
+  shareTripSummary,
+} from '../../../shared/lib/share';
 import {useCurrentLocation} from '../../../shared/lib/useCurrentLocation';
 import {
   MainTabParamList,
   RootStackParamList,
 } from '../../../shared/types/navigation';
+import {RouteStartCandidate} from '../../../widgets/route-builder-modal/ui/RouteBuilderModal';
 import {TripSummaryOption} from '../../../widgets/trip-selector-modal/ui/TripSelectorModal';
 
 type TripScreenNavigationProp = CompositeNavigationProp<
@@ -57,6 +64,7 @@ export const useTripPlanner = () => {
   const clearTrip = useTripStore(state => state.clearTrip);
 
   const places = usePlacesStore(state => state.places);
+  const upsertPlace = usePlacesStore(state => state.upsertPlace);
   const {coordinates: userCoordinates} = useCurrentLocation();
   const distanceAnchorMode = useSettingsStore(
     state => state.distanceAnchorMode,
@@ -67,7 +75,16 @@ export const useTripPlanner = () => {
 
   const [isTripSelectorVisible, setIsTripSelectorVisible] =
     useState<boolean>(false);
+  const [isRouteBuilderVisible, setIsRouteBuilderVisible] =
+    useState<boolean>(false);
+  const [isAnyRowDragging, setIsAnyRowDragging] = useState<boolean>(false);
   const [newTripTitle, setNewTripTitle] = useState<string>('');
+  const [importTextInput, setImportTextInput] = useState<string>('');
+  const [importError, setImportError] = useState<string | null>(null);
+  const [importSuccessMessage, setImportSuccessMessage] = useState<
+    string | null
+  >(null);
+  const [copiedTripId, setCopiedTripId] = useState<string | null>(null);
 
   const originCoordinates =
     distanceAnchorMode === 'custom' ? customAnchorCoordinates : userCoordinates;
@@ -135,6 +152,15 @@ export const useTripPlanner = () => {
     });
   }, [items, placesById, originCoordinates]);
 
+  const routeCandidates: RouteStartCandidate[] = useMemo(() => {
+    return stops.map(stop => ({
+      placeId: stop.placeId,
+      title: stop.title,
+      address: stop.address,
+      distanceFromUserLabel: stop.distanceLabel,
+    }));
+  }, [stops]);
+
   const totalCount = stops.length;
   const visitedCount = useMemo(
     () => stops.filter(stop => stop.isVisited).length,
@@ -148,6 +174,8 @@ export const useTripPlanner = () => {
   }, [visitedCount, totalCount]);
 
   const handleOpenTripSelector = useCallback(() => {
+    setImportError(null);
+    setImportSuccessMessage(null);
     setIsTripSelectorVisible(true);
   }, []);
 
@@ -167,8 +195,74 @@ export const useTripPlanner = () => {
     const fallbackTitle = `Trip #${trips.length + 1}`;
     createTrip(newTripTitle.trim() || fallbackTitle);
     setNewTripTitle('');
+    setImportError(null);
     setIsTripSelectorVisible(false);
   }, [createTrip, newTripTitle, trips.length]);
+
+  const handleCopyTripExport = useCallback(
+    (tripId: string) => {
+      const targetTrip = trips.find(item => item.id === tripId);
+      if (!targetTrip) {
+        return;
+      }
+      copyTripExportToClipboard(
+        targetTrip.title,
+        targetTrip.items,
+        placesById,
+      );
+      setCopiedTripId(tripId);
+      setImportError(null);
+      setImportSuccessMessage(
+        `Copied "${targetTrip.title}" export to clipboard!`,
+      );
+      setTimeout(() => {
+        setCopiedTripId(null);
+      }, 2000);
+    },
+    [trips, placesById],
+  );
+
+  const handleImportFromClipboard = useCallback(async () => {
+    setImportError(null);
+    setImportSuccessMessage(null);
+
+    const manualText = importTextInput.trim();
+    const rawSource =
+      manualText.length > 0 ? manualText : await readTextFromClipboard();
+
+    const parsedResult = parseImportedTripText(rawSource);
+    if (!parsedResult.ok) {
+      setImportError(parsedResult.error);
+      return;
+    }
+
+    const {payload} = parsedResult;
+    const importedTripItems = payload.stops.map((stop, index) => {
+      upsertPlace({
+        id: stop.id,
+        title: stop.title,
+        address: stop.address,
+        description: stop.description,
+        category: stop.category,
+        coordinates: stop.coordinates,
+        isFavorite: false,
+        createdAt: Date.now(),
+      });
+      return {
+        placeId: stop.id,
+        isVisited: stop.isVisited,
+        order: index,
+        addedAt: Date.now() + index,
+      };
+    });
+
+    createTrip(payload.title);
+    reorderTrip(importedTripItems);
+    setImportTextInput('');
+    setImportSuccessMessage(
+      `Imported "${payload.title}" (${importedTripItems.length} stops)!`,
+    );
+  }, [importTextInput, upsertPlace, createTrip, reorderTrip]);
 
   const handleDeleteTrip = useCallback(
     (tripId: string) => {
@@ -191,24 +285,55 @@ export const useTripPlanner = () => {
     [moveTripItem],
   );
 
-  const handleSortByDistance = useCallback(() => {
-    const sortedByDistance = [...items].sort((first, second) => {
-      const firstPlace = placesById[first.placeId];
-      const secondPlace = placesById[second.placeId];
-      if (!firstPlace || !secondPlace) {
-        return 0;
+  const handleOpenRouteBuilder = useCallback(() => {
+    setIsRouteBuilderVisible(true);
+  }, []);
+
+  const handleCloseRouteBuilder = useCallback(() => {
+    setIsRouteBuilderVisible(false);
+  }, []);
+
+  const handleBuildRouteFromPlace = useCallback(
+    (startPlaceId: string) => {
+      const ordered = buildNearestNeighborTripOrder(
+        items,
+        placesById,
+        startPlaceId,
+      );
+      reorderTrip(ordered);
+      setIsRouteBuilderVisible(false);
+    },
+    [items, placesById, reorderTrip],
+  );
+
+  const handleBuildRouteFromNearestToMe = useCallback(() => {
+    let closestPlaceId: string | null = null;
+    let minDistance = Number.POSITIVE_INFINITY;
+
+    items.forEach(item => {
+      const place = placesById[item.placeId];
+      if (!place) {
+        return;
       }
-      const firstDist = calculateHaversineDistanceKm(
+      const dist = calculateHaversineDistanceKm(
         originCoordinates,
-        firstPlace.coordinates,
+        place.coordinates,
       );
-      const secondDist = calculateHaversineDistanceKm(
-        originCoordinates,
-        secondPlace.coordinates,
-      );
-      return firstDist - secondDist;
+      if (dist < minDistance) {
+        minDistance = dist;
+        closestPlaceId = place.id;
+      }
     });
-    reorderTrip(sortedByDistance);
+
+    if (closestPlaceId) {
+      const ordered = buildNearestNeighborTripOrder(
+        items,
+        placesById,
+        closestPlaceId,
+      );
+      reorderTrip(ordered);
+    }
+    setIsRouteBuilderVisible(false);
   }, [items, placesById, originCoordinates, reorderTrip]);
 
   const handleShareTrip = useCallback(async () => {
@@ -256,12 +381,23 @@ export const useTripPlanner = () => {
     tripSummaries,
     canDeleteTrips: trips.length > 1,
     isTripSelectorVisible,
+    isRouteBuilderVisible,
+    isAnyRowDragging,
+    setIsAnyRowDragging,
     newTripTitle,
     setNewTripTitle,
+    importTextInput,
+    setImportTextInput,
+    importError,
+    importSuccessMessage,
+    copiedTripId,
+    routeCandidates,
     handleOpenTripSelector,
     handleCloseTripSelector,
     handleSelectTrip,
     handleCreateNewTrip,
+    handleCopyTripExport,
+    handleImportFromClipboard,
     handleDeleteTrip,
     stops,
     visitedCount,
@@ -270,7 +406,10 @@ export const useTripPlanner = () => {
     toggleVisited,
     handleMoveStopUp,
     handleMoveStopDown,
-    handleSortByDistance,
+    handleOpenRouteBuilder,
+    handleCloseRouteBuilder,
+    handleBuildRouteFromPlace,
+    handleBuildRouteFromNearestToMe,
     handleShareTrip,
     removePlaceFromTrip,
     clearTrip,
