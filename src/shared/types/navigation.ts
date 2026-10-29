@@ -15,3 +15,4 @@ export type RootStackParamList = {
   PlaceDetails: {placeId: string};
   AddPlace: {initialCoordinates?: Coordinates} | undefined;
 };
+

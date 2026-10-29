@@ -47,3 +47,4 @@ export interface PlacesState {
   toggleFavorite: (placeId: string) => void;
   getPlaceById: (placeId: string) => Place | undefined;
 }
+

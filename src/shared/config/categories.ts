@@ -71,3 +71,4 @@ export const FILTER_CATEGORIES: {id: FilterCategory; label: string}[] = [
     label: category.label,
   })),
 ];
+

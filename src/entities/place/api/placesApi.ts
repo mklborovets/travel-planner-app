@@ -90,3 +90,4 @@ export const searchNominatimPlaces = async (
   });
   return response.data;
 };
+

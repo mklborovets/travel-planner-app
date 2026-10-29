@@ -90,3 +90,4 @@ export const MapPlacePreview: React.FC<MapPlacePreviewProps> = ({
     </View>
   );
 };
+

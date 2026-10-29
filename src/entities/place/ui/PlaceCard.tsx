@@ -74,3 +74,4 @@ export const PlaceCard: React.FC<PlaceCardProps> = ({
     </Pressable>
   );
 };
+

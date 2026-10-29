@@ -31,3 +31,4 @@ export const CategoryChip: React.FC<CategoryChipProps> = ({
     </Pressable>
   );
 };
+

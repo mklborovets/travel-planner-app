@@ -35,3 +35,4 @@ export const TripProgressBar: React.FC<TripProgressBarProps> = ({
     </View>
   );
 };
+

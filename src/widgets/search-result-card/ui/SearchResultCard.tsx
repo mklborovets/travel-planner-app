@@ -105,3 +105,4 @@ export const SearchResultCard: React.FC<SearchResultCardProps> = ({
     </Pressable>
   );
 };
+

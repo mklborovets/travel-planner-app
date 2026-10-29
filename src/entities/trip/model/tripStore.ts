@@ -87,3 +87,4 @@ export const useTripStore = create<TripState>()(
     },
   ),
 );
+

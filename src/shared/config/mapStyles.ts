@@ -17,3 +17,4 @@ export const DARK_MAP_STYLE: MapStyleElement[] = [
     stylers: [{color: '#0f172a'}],
   },
 ];
+

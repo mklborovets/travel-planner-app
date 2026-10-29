@@ -5,3 +5,4 @@ export interface SettingsState {
   toggleMapTheme: () => void;
   setMapTheme: (theme: MapTheme) => void;
 }
+

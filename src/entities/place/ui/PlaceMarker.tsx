@@ -27,3 +27,4 @@ export const PlaceMarker: React.FC<PlaceMarkerProps> = ({
     />
   );
 };
+

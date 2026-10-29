@@ -77,3 +77,4 @@ export const BottomTabNavigator: React.FC = () => {
     </Tab.Navigator>
   );
 };
+

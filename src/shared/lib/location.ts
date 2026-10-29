@@ -51,3 +51,4 @@ export const formatDistance = (distanceKm: number): string => {
 export const formatCoordinates = (coordinates: Coordinates): string => {
   return `${coordinates.latitude.toFixed(5)}, ${coordinates.longitude.toFixed(5)}`;
 };
+

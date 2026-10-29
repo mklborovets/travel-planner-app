@@ -114,3 +114,4 @@ export const usePlaceDetails = () => {
     handleGoBack,
   };
 };
+

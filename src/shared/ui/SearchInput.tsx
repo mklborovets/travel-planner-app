@@ -38,3 +38,4 @@ export const SearchInput: React.FC<SearchInputProps> = ({
     </View>
   );
 };
+

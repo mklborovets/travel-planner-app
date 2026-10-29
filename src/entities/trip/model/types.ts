@@ -16,3 +16,4 @@ export interface TripState {
   clearTrip: () => void;
   isPlaceInTrip: (placeId: string) => boolean;
 }
+
