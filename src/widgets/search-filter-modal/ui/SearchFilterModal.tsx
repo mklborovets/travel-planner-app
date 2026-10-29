@@ -341,3 +341,4 @@ export const SearchFilterModal: React.FC<SearchFilterModalProps> = ({
     </Modal>
   );
 };
+

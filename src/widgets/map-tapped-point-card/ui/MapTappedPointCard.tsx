@@ -76,3 +76,4 @@ export const MapTappedPointCard: React.FC<MapTappedPointCardProps> = ({
     </View>
   );
 };
+

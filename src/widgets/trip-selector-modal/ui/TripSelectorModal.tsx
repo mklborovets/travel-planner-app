@@ -152,3 +152,4 @@ export const TripSelectorModal: React.FC<TripSelectorModalProps> = ({
     </Modal>
   );
 };
+

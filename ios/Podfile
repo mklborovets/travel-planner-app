@@ -42,5 +42,12 @@ target 'TravelPlannerApp' do
       config[:reactNativePath],
       :mac_catalyst_enabled => false
     )
+
+    installer.aggregate_targets.each do |aggregate_target|
+      aggregate_target.xcconfigs.each do |config_name, config_file|
+        config_file.attributes['LIBRARY_SEARCH_PATHS'] = "$(inherited) \"$(DT_TOOLCHAIN_DIR)/usr/lib/swift/$(PLATFORM_NAME)\""
+        config_file.save_as(Pathname.new(config_file.defined_in_file))
+      end
+    end
   end
 end

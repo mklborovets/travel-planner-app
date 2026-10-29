@@ -49,3 +49,4 @@ export const COUNTRY_FILTER_PRESETS: CountryFilterPreset[] = [
 ];
 
 export const SEARCH_RADIUS_OPTIONS: SearchRadiusKm[] = [5, 15, 30, 50];
+

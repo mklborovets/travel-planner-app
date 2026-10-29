@@ -82,3 +82,4 @@ export const CategoryPickerModal: React.FC<CategoryPickerModalProps> = ({
     </Modal>
   );
 };
+
