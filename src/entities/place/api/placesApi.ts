@@ -1,7 +1,9 @@
 import {apiClient} from '../../../shared/api/client';
+import {calculateBoundingBoxViewbox} from '../../../shared/lib/location';
 import {
   Coordinates,
   NominatimReverseResult,
+  NominatimSearchOptions,
   NominatimSearchResult,
   Place,
   PlaceCategory,
@@ -126,20 +128,51 @@ export const mapNominatimResultToPlace = (
   };
 };
 
+interface NominatimQueryParams {
+  q: string;
+  format: 'json';
+  addressdetails: 1;
+  limit: number;
+  countrycodes?: string;
+  viewbox?: string;
+  bounded?: 1;
+}
+
 export const searchNominatimPlaces = async (
   query: string,
+  options?: NominatimSearchOptions,
 ): Promise<NominatimSearchResult[]> => {
   const trimmed = query.trim();
   if (!trimmed) {
     return [];
   }
+
+  const params: NominatimQueryParams = {
+    q: trimmed,
+    format: 'json',
+    addressdetails: 1,
+    limit: 15,
+  };
+
+  if (options?.mode === 'country' && options.countryCode) {
+    const cleanCode = options.countryCode.trim().toLowerCase();
+    if (cleanCode.length === 2) {
+      params.countrycodes = cleanCode;
+    }
+  } else if (
+    (options?.mode === 'city_radius' || options?.mode === 'near_me') &&
+    options.boundingCenter &&
+    options.radiusKm
+  ) {
+    params.viewbox = calculateBoundingBoxViewbox(
+      options.boundingCenter,
+      options.radiusKm,
+    );
+    params.bounded = 1;
+  }
+
   const response = await apiClient.get<NominatimSearchResult[]>('/search', {
-    params: {
-      q: trimmed,
-      format: 'json',
-      addressdetails: 1,
-      limit: 15,
-    },
+    params,
   });
   return response.data;
 };

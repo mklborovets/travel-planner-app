@@ -37,6 +37,21 @@ export interface NominatimSearchResult {
   name?: string;
 }
 
+export type SearchScopeMode =
+  | 'worldwide'
+  | 'country'
+  | 'city_radius'
+  | 'near_me';
+
+export type SearchRadiusKm = 5 | 15 | 30 | 50;
+
+export interface NominatimSearchOptions {
+  mode: SearchScopeMode;
+  countryCode?: string;
+  boundingCenter?: Coordinates;
+  radiusKm?: SearchRadiusKm;
+}
+
 export interface NominatimReverseAddress {
   road?: string;
   house_number?: string;

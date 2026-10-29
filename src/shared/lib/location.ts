@@ -52,6 +52,25 @@ export const formatCoordinates = (coordinates: Coordinates): string => {
   return `${coordinates.latitude.toFixed(5)}, ${coordinates.longitude.toFixed(5)}`;
 };
 
+export const calculateBoundingBoxViewbox = (
+  center: Coordinates,
+  radiusKm: number,
+): string => {
+  const latDelta = radiusKm / 111.32;
+  const cosLat = Math.max(
+    Math.cos(degreesToRadians(center.latitude)),
+    0.01,
+  );
+  const lonDelta = radiusKm / (111.32 * cosLat);
+
+  const minLon = Math.max(center.longitude - lonDelta, -180);
+  const maxLon = Math.min(center.longitude + lonDelta, 180);
+  const minLat = Math.max(center.latitude - latDelta, -90);
+  const maxLat = Math.min(center.latitude + latDelta, 90);
+
+  return `${minLon.toFixed(5)},${maxLat.toFixed(5)},${maxLon.toFixed(5)},${minLat.toFixed(5)}`;
+};
+
 export interface ParsedCoordinateStrings {
   latitude: string;
   longitude: string;
@@ -60,7 +79,11 @@ export interface ParsedCoordinateStrings {
 export const parseCoordinatePairInput = (
   rawInput: string,
 ): ParsedCoordinateStrings | null => {
-  if (!rawInput.includes(',') && !rawInput.includes(';') && !/\s/.test(rawInput.trim())) {
+  if (
+    !rawInput.includes(',') &&
+    !rawInput.includes(';') &&
+    !/\s/.test(rawInput.trim())
+  ) {
     return null;
   }
 
