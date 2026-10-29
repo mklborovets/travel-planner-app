@@ -52,14 +52,22 @@ export const usePlaceDetails = () => {
   );
 
   const [isAddressCopied, setIsAddressCopied] = useState<boolean>(false);
+  const [isCoordinatesCopied, setIsCoordinatesCopied] =
+    useState<boolean>(false);
   const copyFeedbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
   );
+  const coordinatesFeedbackTimerRef = useRef<ReturnType<
+    typeof setTimeout
+  > | null>(null);
 
   useEffect(() => {
     return () => {
       if (copyFeedbackTimerRef.current) {
         clearTimeout(copyFeedbackTimerRef.current);
+      }
+      if (coordinatesFeedbackTimerRef.current) {
+        clearTimeout(coordinatesFeedbackTimerRef.current);
       }
     };
   }, []);
@@ -102,6 +110,20 @@ export const usePlaceDetails = () => {
     }
     copyFeedbackTimerRef.current = setTimeout(() => {
       setIsAddressCopied(false);
+    }, 2000);
+  }, [place]);
+
+  const handleCopyCoordinates = useCallback(() => {
+    if (!place) {
+      return;
+    }
+    copyTextToClipboard(formatCoordinates(place.coordinates));
+    setIsCoordinatesCopied(true);
+    if (coordinatesFeedbackTimerRef.current) {
+      clearTimeout(coordinatesFeedbackTimerRef.current);
+    }
+    coordinatesFeedbackTimerRef.current = setTimeout(() => {
+      setIsCoordinatesCopied(false);
     }, 2000);
   }, [place]);
 
@@ -159,7 +181,9 @@ export const usePlaceDetails = () => {
   return {
     detailsViewModel,
     isAddressCopied,
+    isCoordinatesCopied,
     handleCopyAddress,
+    handleCopyCoordinates,
     handleSharePlace,
     handleToggleFavorite,
     handleToggleTrip,

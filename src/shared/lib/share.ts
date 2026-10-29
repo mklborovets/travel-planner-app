@@ -1,26 +1,78 @@
-import {Clipboard, Share} from 'react-native';
-import {Place} from '../../entities/place/model/types';
+import {
+  NativeModules,
+  Share,
+  TurboModule,
+  TurboModuleRegistry,
+} from 'react-native';
+import {Coordinates, Place} from '../../entities/place/model/types';
 import {TripItem} from '../../entities/trip/model/types';
 
-export const copyTextToClipboard = (text: string): void => {
+interface NativeClipboardSpec extends TurboModule {
+  getString: () => Promise<string>;
+  setString: (content: string) => void;
+}
+
+let inMemoryClipboardFallback = '';
+
+const getNativeClipboardModule = (): NativeClipboardSpec | null => {
   try {
-    Clipboard.setString(text);
+    const turbo = TurboModuleRegistry.get<NativeClipboardSpec>('Clipboard');
+    if (turbo) {
+      return turbo;
+    }
+  } catch {}
+  const legacy = (NativeModules as {Clipboard?: NativeClipboardSpec}).Clipboard;
+  return legacy ?? null;
+};
+
+export const copyTextToClipboard = (text: string): void => {
+  inMemoryClipboardFallback = text;
+  try {
+    const clipboardModule = getNativeClipboardModule();
+    clipboardModule?.setString(text);
   } catch {
     return;
   }
 };
 
+export const readTextFromClipboard = async (): Promise<string> => {
+  try {
+    const clipboardModule = getNativeClipboardModule();
+    if (clipboardModule?.getString) {
+      const text = await clipboardModule.getString();
+      if (text && text.trim().length > 0) {
+        return text;
+      }
+    }
+  } catch {
+    return inMemoryClipboardFallback;
+  }
+  return inMemoryClipboardFallback;
+};
+
 export const buildPlaceMapUrl = (
-  latitude: number,
-  longitude: number,
+  coordinates: Coordinates,
+  title?: string,
+  address?: string,
 ): string => {
-  return `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`;
+  const cleanTitle = title?.trim();
+  const cleanAddress = address?.trim();
+  const searchTarget =
+    cleanTitle && cleanAddress
+      ? `${cleanTitle}, ${cleanAddress}`
+      : cleanTitle ||
+        cleanAddress ||
+        `${coordinates.latitude},${coordinates.longitude}`;
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+    searchTarget,
+  )}`;
 };
 
 export const formatPlaceShareMessage = (place: Place): string => {
   const mapUrl = buildPlaceMapUrl(
-    place.coordinates.latitude,
-    place.coordinates.longitude,
+    place.coordinates,
+    place.title,
+    place.address,
   );
   const lines = [
     place.title,
@@ -60,8 +112,9 @@ export const formatTripShareMessage = (
       }
       const statusText = item.isVisited ? '[Visited]' : '[Planned]';
       const mapUrl = buildPlaceMapUrl(
-        place.coordinates.latitude,
-        place.coordinates.longitude,
+        place.coordinates,
+        place.title,
+        place.address,
       );
       return [
         `#${index + 1} ${statusText} ${place.title}`,

@@ -79,7 +79,7 @@ export const MapScreen: React.FC = () => {
         <View
           pointerEvents="box-none"
           className="flex-row items-center justify-between">
-          <View className="rounded-2xl border border-slate-200 bg-white/95 px-4 py-2.5 shadow-sm">
+          <View className="rounded-2xl border border-slate-200 bg-white px-4 py-2.5 shadow-sm">
             <Text className="text-sm font-extrabold text-slate-900">
               Places Map
             </Text>
@@ -108,12 +108,12 @@ export const MapScreen: React.FC = () => {
         className="absolute right-4 top-32 items-center">
         <Pressable
           onPress={handleZoomIn}
-          className="mb-2 h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 bg-white/95 shadow-sm">
+          className="mb-2 h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 bg-white shadow-sm">
           <Plus size={20} color="#0f172a" />
         </Pressable>
         <Pressable
           onPress={handleZoomOut}
-          className="h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 bg-white/95 shadow-sm">
+          className="h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 bg-white shadow-sm">
           <Minus size={20} color="#0f172a" />
         </Pressable>
       </View>

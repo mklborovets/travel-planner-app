@@ -28,13 +28,36 @@ export interface Place {
   createdAt: number;
 }
 
+export interface NominatimReverseAddress {
+  amenity?: string;
+  shop?: string;
+  tourism?: string;
+  leisure?: string;
+  historic?: string;
+  building?: string;
+  office?: string;
+  road?: string;
+  house_number?: string;
+  pedestrian?: string;
+  suburb?: string;
+  neighbourhood?: string;
+  city?: string;
+  town?: string;
+  village?: string;
+  state?: string;
+  postcode?: string;
+  country?: string;
+}
+
 export interface NominatimSearchResult {
   place_id: number;
   display_name: string;
   lat: string;
   lon: string;
   type: string;
+  class?: string;
   name?: string;
+  address?: NominatimReverseAddress;
 }
 
 export type SearchScopeMode =
@@ -52,29 +75,20 @@ export interface NominatimSearchOptions {
   radiusKm?: SearchRadiusKm;
 }
 
-export interface NominatimReverseAddress {
-  road?: string;
-  house_number?: string;
-  pedestrian?: string;
-  suburb?: string;
-  city?: string;
-  town?: string;
-  village?: string;
-  state?: string;
-  country?: string;
-}
-
 export interface NominatimReverseResult {
   place_id?: number;
   display_name?: string;
   name?: string;
   type?: string;
+  class?: string;
   address?: NominatimReverseAddress;
+  namedetails?: Record<string, string>;
 }
 
 export interface ReverseGeocodedLocation {
   title: string;
   address: string;
+  category: PlaceCategory;
 }
 
 export interface CreatePlacePayload {

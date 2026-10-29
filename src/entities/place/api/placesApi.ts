@@ -2,6 +2,7 @@ import {apiClient} from '../../../shared/api/client';
 import {calculateBoundingBoxViewbox} from '../../../shared/lib/location';
 import {
   Coordinates,
+  NominatimReverseAddress,
   NominatimReverseResult,
   NominatimSearchOptions,
   NominatimSearchResult,
@@ -46,7 +47,11 @@ export const inferCategoryFromNominatimType = (
     normalized.includes('mall') ||
     normalized.includes('supermarket') ||
     normalized.includes('marketplace') ||
-    normalized.includes('department_store')
+    normalized.includes('department_store') ||
+    normalized.includes('convenience') ||
+    normalized.includes('clothes') ||
+    normalized.includes('furniture') ||
+    normalized.includes('bakery')
   ) {
     return 'shopping';
   }
@@ -95,30 +100,134 @@ export const inferCategoryFromNominatimType = (
     normalized.includes('monument') ||
     normalized.includes('memorial') ||
     normalized.includes('castle') ||
-    normalized.includes('viewpoint')
+    normalized.includes('viewpoint') ||
+    normalized.includes('historic')
   ) {
     return 'sightseeing';
   }
   return 'other';
 };
 
+const isAdministrativeNoisePart = (part: string): boolean => {
+  const lower = part.toLowerCase();
+  if (/^\d{4,6}$/.test(part)) {
+    return true;
+  }
+  const noiseKeywords = [
+    'район',
+    'громада',
+    'область',
+    'district',
+    'oblast',
+    'province',
+    'county',
+    'municipality',
+    'voivodeship',
+    'suburb',
+  ];
+  return noiseKeywords.some(keyword => lower.includes(keyword));
+};
+
+export const formatConciseNominatimAddress = (
+  displayName: string,
+  address?: NominatimReverseAddress,
+): string => {
+  const rawParts = displayName
+    .split(',')
+    .map(part => part.trim())
+    .filter(Boolean);
+
+  const meaningfulParts = rawParts.filter(
+    part => !isAdministrativeNoisePart(part),
+  );
+
+  if (meaningfulParts.length > 0) {
+    const topParts = meaningfulParts.slice(0, 3);
+    const locality = address?.city || address?.town || address?.village;
+    if (
+      locality &&
+      !topParts.some(part => part.toLowerCase() === locality.toLowerCase()) &&
+      topParts.length < 4
+    ) {
+      return [...topParts, locality].join(', ');
+    }
+    return topParts.join(', ');
+  }
+
+  return rawParts.slice(0, 3).join(', ') || displayName;
+};
+
+export const extractPlaceTitleFromNominatim = (
+  name?: string,
+  displayName?: string,
+  address?: NominatimReverseAddress,
+  namedetails?: Record<string, string>,
+): string => {
+  const candidateFromNameDetails =
+    namedetails?.name ||
+    namedetails?.['name:uk'] ||
+    namedetails?.['name:en'] ||
+    namedetails?.brand ||
+    namedetails?.operator;
+
+  const poiField =
+    address?.amenity ||
+    address?.shop ||
+    address?.tourism ||
+    address?.leisure ||
+    address?.historic ||
+    address?.building ||
+    address?.office;
+
+  if (name && name.trim().length > 0) {
+    return name.trim();
+  }
+  if (candidateFromNameDetails && candidateFromNameDetails.trim().length > 0) {
+    return candidateFromNameDetails.trim();
+  }
+  if (poiField && poiField.trim().length > 0 && poiField !== 'yes') {
+    return poiField.trim();
+  }
+
+  const parts = displayName
+    ? displayName
+        .split(',')
+        .map(part => part.trim())
+        .filter(Boolean)
+    : [];
+
+  if (parts.length >= 2 && /^\d+[a-zA-Zа-яА-ЯіІїЇєЄґҐ/-]*$/.test(parts[0])) {
+    if (parts[2] && !isAdministrativeNoisePart(parts[2])) {
+      return parts[2];
+    }
+    return `${parts[1]}, ${parts[0]}`;
+  }
+
+  return parts[0] || 'Pinned Location';
+};
+
 export const mapNominatimResultToPlace = (
   result: NominatimSearchResult,
 ): Place => {
-  const parts = result.display_name.split(',').map(part => part.trim());
-  const extractedTitle =
-    result.name && result.name.trim().length > 0
-      ? result.name.trim()
-      : parts[0] || 'Unnamed Place';
-  const extractedAddress =
-    parts.length > 1 ? parts.slice(1).join(', ') : result.display_name;
+  const extractedTitle = extractPlaceTitleFromNominatim(
+    result.name,
+    result.display_name,
+    result.address,
+  );
+  const extractedAddress = formatConciseNominatimAddress(
+    result.display_name,
+    result.address,
+  );
+  const rawCategorySource = [result.type, result.class]
+    .filter(Boolean)
+    .join(' ');
 
   return {
     id: `osm-${result.place_id}`,
     title: extractedTitle,
     address: extractedAddress,
     description: `Type: ${result.type}`,
-    category: inferCategoryFromNominatimType(result.type),
+    category: inferCategoryFromNominatimType(rawCategorySource),
     coordinates: {
       latitude: Number.parseFloat(result.lat) || 0,
       longitude: Number.parseFloat(result.lon) || 0,
@@ -184,41 +293,39 @@ export const reverseGeocodeCoordinates = async (
     params: {
       lat: coordinates.latitude,
       lon: coordinates.longitude,
+      zoom: 18,
       format: 'json',
       addressdetails: 1,
+      namedetails: 1,
+      extratags: 1,
     },
   });
 
   const data = response.data;
-  const addressObj = data.address;
-  const roadName = addressObj?.road || addressObj?.pedestrian;
-  const houseNumber = addressObj?.house_number;
-  const locality =
-    addressObj?.city || addressObj?.town || addressObj?.village || '';
+  const resolvedTitle = extractPlaceTitleFromNominatim(
+    data.name,
+    data.display_name,
+    data.address,
+    data.namedetails,
+  );
 
-  const streetPart = roadName
-    ? houseNumber
-      ? `${roadName}, ${houseNumber}`
-      : roadName
-    : '';
+  const resolvedAddress = data.display_name
+    ? formatConciseNominatimAddress(data.display_name, data.address)
+    : `${coordinates.latitude.toFixed(5)}, ${coordinates.longitude.toFixed(5)}`;
 
-  const rawDisplayParts = data.display_name
-    ? data.display_name.split(',').map(part => part.trim())
-    : [];
-
-  const resolvedTitle =
-    data.name && data.name.trim().length > 0
-      ? data.name.trim()
-      : streetPart || rawDisplayParts[0] || 'Pinned Location';
-
-  const resolvedAddress =
-    streetPart && locality
-      ? `${streetPart}, ${locality}`
-      : data.display_name ||
-        `${coordinates.latitude.toFixed(5)}, ${coordinates.longitude.toFixed(5)}`;
+  const rawCategorySource = [
+    data.type,
+    data.class,
+    data.address?.amenity,
+    data.address?.shop,
+    data.address?.tourism,
+  ]
+    .filter(Boolean)
+    .join(' ');
 
   return {
     title: resolvedTitle,
     address: resolvedAddress,
+    category: inferCategoryFromNominatimType(rawCategorySource),
   };
 };

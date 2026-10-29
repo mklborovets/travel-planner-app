@@ -19,7 +19,9 @@ export const PlaceDetailsScreen: React.FC = () => {
   const {
     detailsViewModel,
     isAddressCopied,
+    isCoordinatesCopied,
     handleCopyAddress,
+    handleCopyCoordinates,
     handleSharePlace,
     handleToggleFavorite,
     handleToggleTrip,
@@ -66,7 +68,7 @@ export const PlaceDetailsScreen: React.FC = () => {
           {detailsViewModel.title}
         </Text>
 
-        <View className="mb-3 flex-row items-center justify-between rounded-xl border border-slate-100 bg-slate-50/70 p-3">
+        <View className="mb-3 flex-row items-center justify-between rounded-xl border border-slate-100 bg-slate-50 p-3">
           <View className="mr-2 flex-1 flex-row items-start">
             <MapPin size={16} color="#64748b" />
             <Text className="ml-2 flex-1 text-sm leading-5 text-slate-600">
@@ -99,11 +101,37 @@ export const PlaceDetailsScreen: React.FC = () => {
           </Pressable>
         </View>
 
-        <View className="flex-row items-center rounded-xl bg-slate-50 px-3 py-2.5">
-          <Compass size={16} color="#475569" />
-          <Text className="ml-2 text-xs font-medium text-slate-600">
-            Coordinates: {detailsViewModel.formattedCoordinates}
-          </Text>
+        <View className="flex-row items-center justify-between rounded-xl border border-slate-100 bg-slate-50 p-3">
+          <View className="mr-2 flex-1 flex-row items-center">
+            <Compass size={16} color="#475569" />
+            <Text className="ml-2 text-xs font-medium text-slate-600">
+              Coordinates: {detailsViewModel.formattedCoordinates}
+            </Text>
+          </View>
+          <Pressable
+            onPress={handleCopyCoordinates}
+            hitSlop={8}
+            className={
+              isCoordinatesCopied
+                ? 'flex-row items-center rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1.5'
+                : 'flex-row items-center rounded-lg border border-slate-200 bg-white px-2.5 py-1.5'
+            }>
+            {isCoordinatesCopied ? (
+              <>
+                <Check size={13} color="#059669" />
+                <Text className="ml-1 text-xs font-bold text-emerald-700">
+                  Copied
+                </Text>
+              </>
+            ) : (
+              <>
+                <Copy size={13} color="#475569" />
+                <Text className="ml-1 text-xs font-semibold text-slate-700">
+                  Copy
+                </Text>
+              </>
+            )}
+          </Pressable>
         </View>
       </View>
 
