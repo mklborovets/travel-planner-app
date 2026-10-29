@@ -11,6 +11,7 @@ export type MainTabParamList = {
     | {
         focusCoordinates?: Coordinates;
         selectedPlaceId?: string;
+        previewPlace?: Place;
         focusTimestamp?: number;
       }
     | undefined;

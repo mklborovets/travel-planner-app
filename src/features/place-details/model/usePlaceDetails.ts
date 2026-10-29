@@ -182,18 +182,16 @@ export const usePlaceDetails = () => {
     if (!place) {
       return;
     }
-    if (!isSaved) {
-      upsertPlace(place);
-    }
     navigation.navigate('MainTabs', {
       screen: 'MapTab',
       params: {
         focusCoordinates: place.coordinates,
         selectedPlaceId: place.id,
+        previewPlace: isSaved ? undefined : place,
         focusTimestamp: Date.now(),
       },
     });
-  }, [navigation, place, isSaved, upsertPlace]);
+  }, [navigation, place, isSaved]);
 
   const handleDeletePlace = useCallback(() => {
     if (!place) {

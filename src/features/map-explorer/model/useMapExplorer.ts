@@ -93,6 +93,7 @@ export const useMapExplorer = () => {
 
   const places = usePlacesStore(state => state.places);
   const addPlace = usePlacesStore(state => state.addPlace);
+  const upsertPlace = usePlacesStore(state => state.upsertPlace);
   const toggleFavorite = usePlacesStore(state => state.toggleFavorite);
   const tripItems = useTripStore(state => state.items);
   const mapTheme = useSettingsStore(state => state.mapTheme);
@@ -105,6 +106,9 @@ export const useMapExplorer = () => {
 
   const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(
     route.params?.selectedPlaceId ?? null,
+  );
+  const [previewPlace, setPreviewPlace] = useState<Place | null>(
+    route.params?.previewPlace ?? null,
   );
   const [tappedPoint, setTappedPoint] = useState<TappedMapPointState | null>(
     null,
@@ -131,6 +135,7 @@ export const useMapExplorer = () => {
   useEffect(() => {
     if (route.params?.selectedPlaceId) {
       setSelectedPlaceId(route.params.selectedPlaceId);
+      setPreviewPlace(route.params.previewPlace ?? null);
       setTappedPoint(null);
     }
     if (route.params?.focusCoordinates && mapRef.current) {
@@ -147,17 +152,22 @@ export const useMapExplorer = () => {
   }, [
     route.params?.focusCoordinates,
     route.params?.selectedPlaceId,
+    route.params?.previewPlace,
     route.params?.focusTimestamp,
   ]);
 
   const markers: MapMarkerViewModel[] = useMemo(() => {
-    const shouldCullByViewport = places.length > 40;
+    const combinedPlaces =
+      previewPlace && !places.some(item => item.id === previewPlace.id)
+        ? [...places, previewPlace]
+        : places;
+    const shouldCullByViewport = combinedPlaces.length > 40;
     const activeTripPlaceIds = new Set(tripItems.map(item => item.placeId));
     const latBuffer = visibleRegion.latitudeDelta * 0.75;
     const lngBuffer = visibleRegion.longitudeDelta * 0.75;
 
     const visiblePlaces = shouldCullByViewport
-      ? places.filter(place => {
+      ? combinedPlaces.filter(place => {
           if (
             place.id === selectedPlaceId ||
             activeTripPlaceIds.has(place.id)
@@ -172,7 +182,7 @@ export const useMapExplorer = () => {
             lngBuffer;
           return withinLat && withinLng;
         })
-      : places;
+      : combinedPlaces;
 
     return visiblePlaces.map(place => {
       const categoryConfig = CATEGORY_MAP[place.category];
@@ -184,7 +194,7 @@ export const useMapExplorer = () => {
         pinColor: categoryConfig.hexColor,
       };
     });
-  }, [places, tripItems, selectedPlaceId, visibleRegion]);
+  }, [places, previewPlace, tripItems, selectedPlaceId, visibleRegion]);
 
   const orderedTripStops = useMemo(() => {
     const placesById: Record<string, Place> = {};
@@ -307,7 +317,9 @@ export const useMapExplorer = () => {
     if (!selectedPlaceId) {
       return null;
     }
-    const found = places.find(item => item.id === selectedPlaceId);
+    const found =
+      places.find(item => item.id === selectedPlaceId) ??
+      (previewPlace?.id === selectedPlaceId ? previewPlace : undefined);
     if (!found) {
       return null;
     }
@@ -326,7 +338,7 @@ export const useMapExplorer = () => {
       distanceLabel: formatDistance(distanceKm),
       isFavorite: found.isFavorite,
     };
-  }, [selectedPlaceId, places, userCoordinates]);
+  }, [selectedPlaceId, places, previewPlace, userCoordinates]);
 
   const handleRegionChangeComplete = useCallback((region: Region) => {
     currentRegionRef.current = region;
@@ -382,6 +394,7 @@ export const useMapExplorer = () => {
 
   const handleClearSelection = useCallback(() => {
     setSelectedPlaceId(null);
+    setPreviewPlace(null);
     setTappedPoint(null);
   }, []);
 
@@ -392,6 +405,7 @@ export const useMapExplorer = () => {
       const defaultCategoryConfig = CATEGORY_MAP.sightseeing;
 
       setSelectedPlaceId(null);
+      setPreviewPlace(null);
       setTappedPoint({
         coordinates,
         formattedCoordinates: formatted,
@@ -515,15 +529,27 @@ export const useMapExplorer = () => {
     if (!selectedPlaceId) {
       return;
     }
-    navigation.navigate('PlaceDetails', {placeId: selectedPlaceId});
-  }, [navigation, selectedPlaceId]);
+    const isAlreadySaved = places.some(item => item.id === selectedPlaceId);
+    navigation.navigate('PlaceDetails', {
+      placeId: selectedPlaceId,
+      previewPlace:
+        !isAlreadySaved && previewPlace?.id === selectedPlaceId
+          ? previewPlace
+          : undefined,
+    });
+  }, [navigation, places, previewPlace, selectedPlaceId]);
 
   const handleToggleSelectedFavorite = useCallback(() => {
     if (!selectedPlaceId) {
       return;
     }
+    const isAlreadySaved = places.some(item => item.id === selectedPlaceId);
+    if (!isAlreadySaved && previewPlace?.id === selectedPlaceId) {
+      upsertPlace({...previewPlace, isFavorite: true});
+      return;
+    }
     toggleFavorite(selectedPlaceId);
-  }, [selectedPlaceId, toggleFavorite]);
+  }, [places, previewPlace, selectedPlaceId, toggleFavorite, upsertPlace]);
 
   const handleOpenAddPlaceHere = useCallback(() => {
     navigation.navigate('AddPlace');
