@@ -30,7 +30,7 @@ export const TripScreen: React.FC = () => {
     isTripSelectorVisible,
     isRouteBuilderVisible,
     isAnyRowDragging,
-    setIsAnyRowDragging,
+    dragCoordinator,
     newTripTitle,
     setNewTripTitle,
     importTextInput,
@@ -51,8 +51,6 @@ export const TripScreen: React.FC = () => {
     totalCount,
     progressPercent,
     toggleVisited,
-    handleMoveStopUp,
-    handleMoveStopDown,
     handleOpenRouteBuilder,
     handleCloseRouteBuilder,
     handleBuildRouteFromPlace,
@@ -150,27 +148,24 @@ export const TripScreen: React.FC = () => {
           paddingBottom: 24,
           flexGrow: 1,
         }}
-        renderItem={({item}) => (
+        renderItem={({item, index}) => (
           <TripItemRow
+            placeId={item.placeId}
+            index={index}
             stepNumber={item.stepNumber}
             title={item.title}
             address={item.address}
+            coordinates={item.coordinates}
             categoryLabel={item.categoryLabel}
             categoryBadgeClassName={item.categoryBadgeClassName}
             categoryTextClassName={item.categoryTextClassName}
             distanceLabel={item.distanceLabel}
             isVisited={item.isVisited}
-            canMoveUp={item.canMoveUp}
-            canMoveDown={item.canMoveDown}
-            onToggleVisited={() => toggleVisited(item.placeId)}
-            onMoveUp={() => handleMoveStopUp(item.placeId)}
-            onMoveDown={() => handleMoveStopDown(item.placeId)}
-            onDragStateChange={setIsAnyRowDragging}
-            onPressDetails={() => handleOpenPlaceDetails(item.placeId)}
-            onPressFocusMap={() =>
-              handleFocusStopOnMap(item.placeId, item.coordinates)
-            }
-            onPressRemove={() => removePlaceFromTrip(item.placeId)}
+            dragCoordinator={dragCoordinator}
+            onToggleVisited={toggleVisited}
+            onPressDetails={handleOpenPlaceDetails}
+            onPressFocusMap={handleFocusStopOnMap}
+            onPressRemove={removePlaceFromTrip}
           />
         )}
         ListEmptyComponent={

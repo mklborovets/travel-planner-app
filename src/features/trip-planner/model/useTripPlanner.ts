@@ -25,6 +25,7 @@ import {
 } from '../../../shared/types/navigation';
 import {RouteStartCandidate} from '../../../widgets/route-builder-modal/ui/RouteBuilderModal';
 import {TripSummaryOption} from '../../../widgets/trip-selector-modal/ui/TripSelectorModal';
+import {useTripDragCoordinator} from './useDraggableTripRow';
 
 type TripScreenNavigationProp = CompositeNavigationProp<
   BottomTabNavigationProp<MainTabParamList, 'TripTab'>,
@@ -58,7 +59,6 @@ export const useTripPlanner = () => {
   const selectTrip = useTripStore(state => state.selectTrip);
   const deleteTrip = useTripStore(state => state.deleteTrip);
   const toggleVisited = useTripStore(state => state.toggleVisited);
-  const moveTripItem = useTripStore(state => state.moveTripItem);
   const reorderTrip = useTripStore(state => state.reorderTrip);
   const removePlaceFromTrip = useTripStore(state => state.removePlaceFromTrip);
   const clearTrip = useTripStore(state => state.clearTrip);
@@ -77,7 +77,6 @@ export const useTripPlanner = () => {
     useState<boolean>(false);
   const [isRouteBuilderVisible, setIsRouteBuilderVisible] =
     useState<boolean>(false);
-  const [isAnyRowDragging, setIsAnyRowDragging] = useState<boolean>(false);
   const [newTripTitle, setNewTripTitle] = useState<string>('');
   const [importTextInput, setImportTextInput] = useState<string>('');
   const [importError, setImportError] = useState<string | null>(null);
@@ -264,25 +263,43 @@ export const useTripPlanner = () => {
     );
   }, [importTextInput, upsertPlace, createTrip, reorderTrip]);
 
+  const orderedPlaceIds = useMemo(
+    () => stops.map(stop => stop.placeId),
+    [stops],
+  );
+
+  const handleCommitRowMove = useCallback(
+    (fromIndex: number, toIndex: number) => {
+      const sortedValid = [...items]
+        .filter(item => Boolean(placesById[item.placeId]))
+        .sort((first, second) => first.order - second.order);
+      if (
+        fromIndex < 0 ||
+        fromIndex >= sortedValid.length ||
+        toIndex < 0 ||
+        toIndex >= sortedValid.length ||
+        fromIndex === toIndex
+      ) {
+        return;
+      }
+      const nextItems = [...sortedValid];
+      const [moved] = nextItems.splice(fromIndex, 1);
+      nextItems.splice(toIndex, 0, moved);
+      reorderTrip(nextItems);
+    },
+    [items, placesById, reorderTrip],
+  );
+
+  const {isAnyRowDragging, dragCoordinator} = useTripDragCoordinator({
+    orderedPlaceIds,
+    onCommitMove: handleCommitRowMove,
+  });
+
   const handleDeleteTrip = useCallback(
     (tripId: string) => {
       deleteTrip(tripId);
     },
     [deleteTrip],
-  );
-
-  const handleMoveStopUp = useCallback(
-    (placeId: string) => {
-      moveTripItem(placeId, 'up');
-    },
-    [moveTripItem],
-  );
-
-  const handleMoveStopDown = useCallback(
-    (placeId: string) => {
-      moveTripItem(placeId, 'down');
-    },
-    [moveTripItem],
   );
 
   const handleOpenRouteBuilder = useCallback(() => {
@@ -383,7 +400,7 @@ export const useTripPlanner = () => {
     isTripSelectorVisible,
     isRouteBuilderVisible,
     isAnyRowDragging,
-    setIsAnyRowDragging,
+    dragCoordinator,
     newTripTitle,
     setNewTripTitle,
     importTextInput,
@@ -404,8 +421,6 @@ export const useTripPlanner = () => {
     totalCount,
     progressPercent,
     toggleVisited,
-    handleMoveStopUp,
-    handleMoveStopDown,
     handleOpenRouteBuilder,
     handleCloseRouteBuilder,
     handleBuildRouteFromPlace,

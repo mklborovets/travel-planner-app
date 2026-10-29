@@ -9,57 +9,59 @@ import {
   Square,
   Trash2,
 } from 'lucide-react-native';
-import {useDraggableTripRow} from '../../../features/trip-planner/model/useDraggableTripRow';
+import {Coordinates} from '../../../entities/place/model/types';
+import {
+  TripDragCoordinator,
+  useDraggableTripRow,
+} from '../../../features/trip-planner/model/useDraggableTripRow';
 
 export interface TripItemRowProps {
+  placeId: string;
+  index: number;
   stepNumber: number;
   title: string;
   address: string;
+  coordinates: Coordinates;
   categoryLabel: string;
   categoryBadgeClassName: string;
   categoryTextClassName: string;
   distanceLabel: string;
   isVisited: boolean;
-  canMoveUp: boolean;
-  canMoveDown: boolean;
-  onToggleVisited: () => void;
-  onMoveUp: () => void;
-  onMoveDown: () => void;
-  onDragStateChange: (isDragging: boolean) => void;
-  onPressDetails: () => void;
-  onPressFocusMap: () => void;
-  onPressRemove: () => void;
+  dragCoordinator: TripDragCoordinator;
+  onToggleVisited: (placeId: string) => void;
+  onPressDetails: (placeId: string) => void;
+  onPressFocusMap: (placeId: string, coordinates: Coordinates) => void;
+  onPressRemove: (placeId: string) => void;
 }
 
 export const TripItemRow: React.FC<TripItemRowProps> = ({
+  placeId,
+  index,
   stepNumber,
   title,
   address,
+  coordinates,
   categoryLabel,
   categoryBadgeClassName,
   categoryTextClassName,
   distanceLabel,
   isVisited,
-  canMoveUp,
-  canMoveDown,
+  dragCoordinator,
   onToggleVisited,
-  onMoveUp,
-  onMoveDown,
-  onDragStateChange,
   onPressDetails,
   onPressFocusMap,
   onPressRemove,
 }) => {
-  const {translateY, isDragging, panHandlers} = useDraggableTripRow({
-    canMoveUp,
-    canMoveDown,
-    onMoveUp,
-    onMoveDown,
-    onDragStateChange,
-  });
+  const {translateY, isDragging, handleRowLayout, panHandlers} =
+    useDraggableTripRow({
+      placeId,
+      index,
+      dragCoordinator,
+    });
 
   return (
     <Animated.View
+      onLayout={handleRowLayout}
       style={{
         transform: [{translateY}, {scale: isDragging ? 1.02 : 1}],
         zIndex: isDragging ? 50 : 1,
@@ -82,7 +84,7 @@ export const TripItemRow: React.FC<TripItemRowProps> = ({
         </View>
 
         <Pressable
-          onPress={onToggleVisited}
+          onPress={() => onToggleVisited(placeId)}
           hitSlop={8}
           className="mr-3 items-center justify-center">
           {isVisited ? (
@@ -92,7 +94,9 @@ export const TripItemRow: React.FC<TripItemRowProps> = ({
           )}
         </Pressable>
 
-        <Pressable onPress={onPressDetails} className="flex-1 pr-2">
+        <Pressable
+          onPress={() => onPressDetails(placeId)}
+          className="flex-1 pr-2">
           <View className="mb-1.5 flex-row items-center">
             <View className="mr-2 rounded-md bg-slate-900 px-2 py-0.5">
               <Text className="text-xs font-bold text-white">
@@ -135,13 +139,13 @@ export const TripItemRow: React.FC<TripItemRowProps> = ({
 
         <View className="flex-row items-center">
           <Pressable
-            onPress={onPressFocusMap}
+            onPress={() => onPressFocusMap(placeId, coordinates)}
             hitSlop={8}
             className="mr-1.5 h-9 w-9 items-center justify-center rounded-xl bg-blue-50">
             <Map size={16} color="#2563eb" />
           </Pressable>
           <Pressable
-            onPress={onPressRemove}
+            onPress={() => onPressRemove(placeId)}
             hitSlop={8}
             className="h-9 w-9 items-center justify-center rounded-xl bg-red-50">
             <Trash2 size={16} color="#dc2626" />

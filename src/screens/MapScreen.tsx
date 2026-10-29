@@ -52,9 +52,21 @@ export const MapScreen: React.FC = () => {
           <Polyline
             key={segment.id}
             coordinates={segment.coordinates}
-            strokeColor={segment.isCompleted ? '#10b981' : '#2563eb'}
-            strokeWidth={4}
-            lineDashPattern={segment.isCompleted ? undefined : [8, 5]}
+            strokeColor={
+              segment.status === 'completed'
+                ? '#10b981'
+                : segment.status === 'active_next'
+                  ? '#f59e0b'
+                  : '#2563eb'
+            }
+            strokeWidth={segment.status === 'active_next' ? 5 : 4}
+            lineDashPattern={
+              segment.status === 'completed'
+                ? undefined
+                : segment.status === 'active_next'
+                  ? [12, 6, 3, 6]
+                  : [8, 5]
+            }
           />
         ))}
 

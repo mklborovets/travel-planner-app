@@ -78,10 +78,12 @@ export interface TappedMapPointState {
   isLoadingAddress: boolean;
 }
 
+export type RouteSegmentStatus = 'completed' | 'active_next' | 'upcoming';
+
 export interface RouteSegmentViewModel {
   id: string;
   coordinates: Coordinates[];
-  isCompleted: boolean;
+  status: RouteSegmentStatus;
 }
 
 export const useMapExplorer = () => {
@@ -123,6 +125,7 @@ export const useMapExplorer = () => {
 
   const currentRegionRef = useRef<Region>(initialRegion);
   const lastMarkerPressTimeRef = useRef<number>(0);
+  const streetSegmentCacheRef = useRef<Record<string, Coordinates[]>>({});
 
   useEffect(() => {
     if (route.params?.selectedPlaceId) {
@@ -195,31 +198,71 @@ export const useMapExplorer = () => {
 
     let isCancelled = false;
 
-    const fallbackSegments: RouteSegmentViewModel[] = [];
+    const firstUnvisitedDestinationSegmentIndex = orderedTripStops.findIndex(
+      (stop, idx) => idx > 0 && !stop.isVisited,
+    ) - 1;
+
+    const resolveSegmentStatus = (
+      index: number,
+      fromVisited: boolean,
+      toVisited: boolean,
+    ): RouteSegmentStatus => {
+      if (fromVisited && toVisited) {
+        return 'completed';
+      }
+      if (firstUnvisitedDestinationSegmentIndex >= 0) {
+        return index === firstUnvisitedDestinationSegmentIndex
+          ? 'active_next'
+          : 'upcoming';
+      }
+      return index === 0 ? 'active_next' : 'upcoming';
+    };
+
+    const initialSegments: RouteSegmentViewModel[] = [];
+    let needsRemoteFetch = false;
+
     for (let index = 0; index < orderedTripStops.length - 1; index += 1) {
       const fromStop = orderedTripStops[index];
       const toStop = orderedTripStops[index + 1];
-      fallbackSegments.push({
-        id: `${fromStop.placeId}->${toStop.placeId}-${index}`,
-        coordinates: [fromStop.coordinates, toStop.coordinates],
-        isCompleted: fromStop.isVisited && toStop.isVisited,
+      const pairKey = `${fromStop.placeId}->${toStop.placeId}`;
+      const cachedCoords = streetSegmentCacheRef.current[pairKey];
+      if (!cachedCoords) {
+        needsRemoteFetch = true;
+      }
+      initialSegments.push({
+        id: `${pairKey}-${index}`,
+        coordinates: cachedCoords ?? [fromStop.coordinates, toStop.coordinates],
+        status: resolveSegmentStatus(
+          index,
+          fromStop.isVisited,
+          toStop.isVisited,
+        ),
       });
     }
-    setRouteSegments(fallbackSegments);
+    setRouteSegments(initialSegments);
+
+    if (!needsRemoteFetch) {
+      return;
+    }
 
     const loadStreetSegments = async () => {
       const resolved = await Promise.all(
-        fallbackSegments.map(async (segment, index) => {
+        initialSegments.map(async (segment, index) => {
           const fromStop = orderedTripStops[index];
           const toStop = orderedTripStops[index + 1];
-          const streetCoords = await fetchStreetRouteSegment(
-            fromStop.coordinates,
-            toStop.coordinates,
-          );
+          const pairKey = `${fromStop.placeId}->${toStop.placeId}`;
+          const existing = streetSegmentCacheRef.current[pairKey];
+          const streetCoords =
+            existing ??
+            (await fetchStreetRouteSegment(
+              fromStop.coordinates,
+              toStop.coordinates,
+            ));
+          streetSegmentCacheRef.current[pairKey] = streetCoords;
           return {
             id: segment.id,
             coordinates: streetCoords,
-            isCompleted: fromStop.isVisited && toStop.isVisited,
+            status: segment.status,
           };
         }),
       );
