@@ -14,6 +14,7 @@ import {BottomTabNavigationProp} from '@react-navigation/bottom-tabs';
 import {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {
   fetchStreetRouteSegment,
+  getCachedStreetRouteSegment,
   reverseGeocodeCoordinates,
 } from '../../../entities/place/api/placesApi';
 import {usePlacesStore} from '../../../entities/place/model/placesStore';
@@ -84,7 +85,37 @@ export interface RouteSegmentViewModel {
   id: string;
   coordinates: Coordinates[];
   status: RouteSegmentStatus;
+  strokeColor: string;
+  strokeWidth: number;
+  lineDashPattern?: number[];
 }
+
+const getSegmentVisualProps = (
+  status: RouteSegmentStatus,
+): Pick<
+  RouteSegmentViewModel,
+  'strokeColor' | 'strokeWidth' | 'lineDashPattern'
+> => {
+  if (status === 'completed') {
+    return {
+      strokeColor: '#10b981',
+      strokeWidth: 4,
+      lineDashPattern: undefined,
+    };
+  }
+  if (status === 'active_next') {
+    return {
+      strokeColor: '#f59e0b',
+      strokeWidth: 5,
+      lineDashPattern: [12, 6, 3, 6],
+    };
+  }
+  return {
+    strokeColor: '#2563eb',
+    strokeWidth: 4,
+    lineDashPattern: [8, 5],
+  };
+};
 
 export const useMapExplorer = () => {
   const route = useRoute<MapScreenRouteProp>();
@@ -130,7 +161,6 @@ export const useMapExplorer = () => {
   const currentRegionRef = useRef<Region>(initialRegion);
   const [visibleRegion, setVisibleRegion] = useState<Region>(initialRegion);
   const lastMarkerPressTimeRef = useRef<number>(0);
-  const streetSegmentCacheRef = useRef<Record<string, Coordinates[]>>({});
 
   useEffect(() => {
     if (route.params?.selectedPlaceId) {
@@ -260,18 +290,23 @@ export const useMapExplorer = () => {
       const fromStop = orderedTripStops[index];
       const toStop = orderedTripStops[index + 1];
       const pairKey = `${fromStop.placeId}->${toStop.placeId}`;
-      const cachedCoords = streetSegmentCacheRef.current[pairKey];
+      const cachedCoords = getCachedStreetRouteSegment(
+        fromStop.coordinates,
+        toStop.coordinates,
+      );
       if (!cachedCoords) {
         needsRemoteFetch = true;
       }
+      const status = resolveSegmentStatus(
+        index,
+        fromStop.isVisited,
+        toStop.isVisited,
+      );
       initialSegments.push({
         id: `${pairKey}-${index}`,
         coordinates: cachedCoords ?? [fromStop.coordinates, toStop.coordinates],
-        status: resolveSegmentStatus(
-          index,
-          fromStop.isVisited,
-          toStop.isVisited,
-        ),
+        status,
+        ...getSegmentVisualProps(status),
       });
     }
     setRouteSegments(initialSegments);
@@ -285,19 +320,13 @@ export const useMapExplorer = () => {
         initialSegments.map(async (segment, index) => {
           const fromStop = orderedTripStops[index];
           const toStop = orderedTripStops[index + 1];
-          const pairKey = `${fromStop.placeId}->${toStop.placeId}`;
-          const existing = streetSegmentCacheRef.current[pairKey];
-          const streetCoords =
-            existing ??
-            (await fetchStreetRouteSegment(
-              fromStop.coordinates,
-              toStop.coordinates,
-            ));
-          streetSegmentCacheRef.current[pairKey] = streetCoords;
+          const streetCoords = await fetchStreetRouteSegment(
+            fromStop.coordinates,
+            toStop.coordinates,
+          );
           return {
-            id: segment.id,
+            ...segment,
             coordinates: streetCoords,
-            status: segment.status,
           };
         }),
       );
@@ -369,6 +398,7 @@ export const useMapExplorer = () => {
       longitudeDelta: Math.max(current.longitudeDelta * 0.5, 0.001),
     };
     currentRegionRef.current = nextRegion;
+    setVisibleRegion(nextRegion);
     mapRef.current.animateToRegion(nextRegion, 250);
   }, []);
 
@@ -383,6 +413,7 @@ export const useMapExplorer = () => {
       longitudeDelta: Math.min(current.longitudeDelta * 2, 60),
     };
     currentRegionRef.current = nextRegion;
+    setVisibleRegion(nextRegion);
     mapRef.current.animateToRegion(nextRegion, 250);
   }, []);
 
@@ -445,8 +476,12 @@ export const useMapExplorer = () => {
         });
       } catch {
         setTappedPoint(prev => {
-          if (!prev) {
-            return null;
+          if (
+            !prev ||
+            prev.coordinates.latitude !== coordinates.latitude ||
+            prev.coordinates.longitude !== coordinates.longitude
+          ) {
+            return prev;
           }
           return {
             ...prev,
@@ -521,6 +556,7 @@ export const useMapExplorer = () => {
         longitudeDelta: DEFAULT_MAP_DELTA.longitudeDelta,
       };
       currentRegionRef.current = nextRegion;
+      setVisibleRegion(nextRegion);
       mapRef.current.animateToRegion(nextRegion, 450);
     }
   }, [refreshLocation]);

@@ -1,4 +1,4 @@
-import {useCallback, useMemo, useState} from 'react';
+import {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {CompositeNavigationProp, useNavigation} from '@react-navigation/native';
 import {BottomTabNavigationProp} from '@react-navigation/bottom-tabs';
 import {NativeStackNavigationProp} from '@react-navigation/native-stack';
@@ -6,6 +6,10 @@ import {usePlacesStore} from '../../../entities/place/model/placesStore';
 import {Coordinates, Place} from '../../../entities/place/model/types';
 import {useSettingsStore} from '../../../entities/settings/model/settingsStore';
 import {useTripStore} from '../../../entities/trip/model/tripStore';
+import {
+  RouteStartCandidate,
+  TripSummaryOption,
+} from '../../../entities/trip/model/types';
 import {CATEGORY_MAP} from '../../../shared/config/categories';
 import {
   buildNearestNeighborTripOrder,
@@ -23,8 +27,6 @@ import {
   MainTabParamList,
   RootStackParamList,
 } from '../../../shared/types/navigation';
-import {RouteStartCandidate} from '../../../widgets/route-builder-modal/ui/RouteBuilderModal';
-import {TripSummaryOption} from '../../../widgets/trip-selector-modal/ui/TripSelectorModal';
 import {useTripDragCoordinator} from './useDraggableTripRow';
 
 type TripScreenNavigationProp = CompositeNavigationProp<
@@ -84,6 +86,15 @@ export const useTripPlanner = () => {
     string | null
   >(null);
   const [copiedTripId, setCopiedTripId] = useState<string | null>(null);
+  const copiedTripTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (copiedTripTimerRef.current) {
+        clearTimeout(copiedTripTimerRef.current);
+      }
+    };
+  }, []);
 
   const originCoordinates =
     distanceAnchorMode === 'custom' ? customAnchorCoordinates : userCoordinates;
@@ -214,7 +225,10 @@ export const useTripPlanner = () => {
       setImportSuccessMessage(
         `Copied "${targetTrip.title}" export to clipboard!`,
       );
-      setTimeout(() => {
+      if (copiedTripTimerRef.current) {
+        clearTimeout(copiedTripTimerRef.current);
+      }
+      copiedTripTimerRef.current = setTimeout(() => {
         setCopiedTripId(null);
       }, 2000);
     },
@@ -237,15 +251,16 @@ export const useTripPlanner = () => {
 
     const {payload} = parsedResult;
     const importedTripItems = payload.stops.map((stop, index) => {
+      const existingPlace = placesById[stop.id];
       upsertPlace({
         id: stop.id,
         title: stop.title,
         address: stop.address,
-        description: stop.description,
+        description: existingPlace?.description ?? stop.description,
         category: stop.category,
         coordinates: stop.coordinates,
-        isFavorite: false,
-        createdAt: Date.now(),
+        isFavorite: existingPlace ? existingPlace.isFavorite : false,
+        createdAt: existingPlace ? existingPlace.createdAt : Date.now(),
       });
       return {
         placeId: stop.id,
@@ -261,7 +276,7 @@ export const useTripPlanner = () => {
     setImportSuccessMessage(
       `Imported "${payload.title}" (${importedTripItems.length} stops)!`,
     );
-  }, [importTextInput, upsertPlace, createTrip, reorderTrip]);
+  }, [importTextInput, placesById, upsertPlace, createTrip, reorderTrip]);
 
   const orderedPlaceIds = useMemo(
     () => stops.map(stop => stop.placeId),

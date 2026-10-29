@@ -388,6 +388,13 @@ const buildSegmentCacheKey = (
   return `${origin.latitude.toFixed(5)},${origin.longitude.toFixed(5)}->${destination.latitude.toFixed(5)},${destination.longitude.toFixed(5)}`;
 };
 
+export const getCachedStreetRouteSegment = (
+  origin: Coordinates,
+  destination: Coordinates,
+): Coordinates[] | undefined => {
+  return streetSegmentCache.get(buildSegmentCacheKey(origin, destination));
+};
+
 export const fetchStreetRouteSegment = async (
   origin: Coordinates,
   destination: Coordinates,

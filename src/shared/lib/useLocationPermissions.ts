@@ -17,6 +17,17 @@ export type LocationPermissionState =
   | 'unavailable'
   | 'checking';
 
+let cachedPermissionState: LocationPermissionState = 'checking';
+let inFlightPermissionCheck: Promise<LocationPermissionState> | null = null;
+const permissionListeners = new Set<
+  (state: LocationPermissionState) => void
+>();
+
+const notifyPermissionListeners = (nextState: LocationPermissionState) => {
+  cachedPermissionState = nextState;
+  permissionListeners.forEach(listener => listener(nextState));
+};
+
 const getPlatformLocationPermission = (): Permission | null => {
   if (Platform.OS === 'ios') {
     return PERMISSIONS.IOS.LOCATION_WHEN_IN_USE;
@@ -46,49 +57,64 @@ const mapPermissionStatus = (
 
 export const useLocationPermissions = () => {
   const [permissionState, setPermissionState] =
-    useState<LocationPermissionState>('checking');
+    useState<LocationPermissionState>(cachedPermissionState);
+
+  useEffect(() => {
+    permissionListeners.add(setPermissionState);
+    return () => {
+      permissionListeners.delete(setPermissionState);
+    };
+  }, []);
 
   const checkLocationPermission =
     useCallback(async (): Promise<LocationPermissionState> => {
+      if (inFlightPermissionCheck) {
+        return inFlightPermissionCheck;
+      }
       const permission = getPlatformLocationPermission();
       if (!permission) {
-        setPermissionState('unavailable');
+        notifyPermissionListeners('unavailable');
         return 'unavailable';
       }
-      try {
-        const result = await check(permission);
-        const mapped = mapPermissionStatus(result);
-        setPermissionState(mapped);
-        return mapped;
-      } catch {
-        setPermissionState('unavailable');
-        return 'unavailable';
-      }
+      inFlightPermissionCheck = (async () => {
+        try {
+          const result = await check(permission);
+          const mapped = mapPermissionStatus(result);
+          notifyPermissionListeners(mapped);
+          return mapped;
+        } catch {
+          notifyPermissionListeners('unavailable');
+          return 'unavailable';
+        } finally {
+          inFlightPermissionCheck = null;
+        }
+      })();
+      return inFlightPermissionCheck;
     }, []);
 
   const requestLocationPermission =
     useCallback(async (): Promise<LocationPermissionState> => {
       const permission = getPlatformLocationPermission();
       if (!permission) {
-        setPermissionState('unavailable');
+        notifyPermissionListeners('unavailable');
         return 'unavailable';
       }
       try {
         const current = await check(permission);
         if (current === RESULTS.GRANTED || current === RESULTS.LIMITED) {
-          setPermissionState('granted');
+          notifyPermissionListeners('granted');
           return 'granted';
         }
         if (current === RESULTS.BLOCKED) {
-          setPermissionState('blocked');
+          notifyPermissionListeners('blocked');
           return 'blocked';
         }
         const requested = await request(permission);
         const mapped = mapPermissionStatus(requested);
-        setPermissionState(mapped);
+        notifyPermissionListeners(mapped);
         return mapped;
       } catch {
-        setPermissionState('unavailable');
+        notifyPermissionListeners('unavailable');
         return 'unavailable';
       }
     }, []);
@@ -102,7 +128,9 @@ export const useLocationPermissions = () => {
   }, []);
 
   useEffect(() => {
-    checkLocationPermission();
+    if (cachedPermissionState === 'checking') {
+      checkLocationPermission();
+    }
   }, [checkLocationPermission]);
 
   return {

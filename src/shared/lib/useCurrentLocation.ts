@@ -4,7 +4,38 @@ import {Coordinates} from '../../entities/place/model/types';
 import {DEFAULT_COORDINATES} from './location';
 import {useLocationPermissions} from './useLocationPermissions';
 
-export const useCurrentLocation = () => {
+interface SharedLocationSnapshot {
+  coordinates: Coordinates;
+  hasRealLocation: boolean;
+  isLoadingLocation: boolean;
+}
+
+let sharedSnapshot: SharedLocationSnapshot = {
+  coordinates: DEFAULT_COORDINATES,
+  hasRealLocation: false,
+  isLoadingLocation: false,
+};
+
+let hasInitialFetchStarted = false;
+let inFlightPositionPromise: Promise<Coordinates> | null = null;
+const snapshotListeners = new Set<
+  (snapshot: SharedLocationSnapshot) => void
+>();
+
+const updateSharedSnapshot = (partial: Partial<SharedLocationSnapshot>) => {
+  sharedSnapshot = {
+    ...sharedSnapshot,
+    ...partial,
+  };
+  snapshotListeners.forEach(listener => listener(sharedSnapshot));
+};
+
+export interface UseCurrentLocationOptions {
+  autoFetch?: boolean;
+}
+
+export const useCurrentLocation = (options?: UseCurrentLocationOptions) => {
+  const autoFetch = options?.autoFetch ?? true;
   const {
     permissionState,
     isGranted,
@@ -12,56 +43,83 @@ export const useCurrentLocation = () => {
     openPermissionSettings,
   } = useLocationPermissions();
 
-  const [coordinates, setCoordinates] =
-    useState<Coordinates>(DEFAULT_COORDINATES);
-  const [hasRealLocation, setHasRealLocation] = useState<boolean>(false);
-  const [isLoadingLocation, setIsLoadingLocation] = useState<boolean>(false);
+  const [snapshot, setSnapshot] =
+    useState<SharedLocationSnapshot>(sharedSnapshot);
+
+  useEffect(() => {
+    snapshotListeners.add(setSnapshot);
+    return () => {
+      snapshotListeners.delete(setSnapshot);
+    };
+  }, []);
 
   const fetchCurrentPosition = useCallback(async (): Promise<Coordinates> => {
-    setIsLoadingLocation(true);
-    const status = await requestLocationPermission();
-    if (status !== 'granted') {
-      setCoordinates(DEFAULT_COORDINATES);
-      setHasRealLocation(false);
-      setIsLoadingLocation(false);
-      return DEFAULT_COORDINATES;
+    if (inFlightPositionPromise) {
+      return inFlightPositionPromise;
     }
 
-    return new Promise<Coordinates>(resolve => {
-      Geolocation.getCurrentPosition(
-        position => {
-          const nextCoordinates: Coordinates = {
-            latitude: position.coords.latitude,
-            longitude: position.coords.longitude,
-          };
-          setCoordinates(nextCoordinates);
-          setHasRealLocation(true);
-          setIsLoadingLocation(false);
-          resolve(nextCoordinates);
-        },
-        () => {
-          setCoordinates(DEFAULT_COORDINATES);
-          setHasRealLocation(false);
-          setIsLoadingLocation(false);
-          resolve(DEFAULT_COORDINATES);
-        },
-        {
-          enableHighAccuracy: true,
-          timeout: 10000,
-          maximumAge: 0,
-        },
-      );
-    });
+    hasInitialFetchStarted = true;
+    updateSharedSnapshot({isLoadingLocation: true});
+
+    inFlightPositionPromise = (async () => {
+      try {
+        const status = await requestLocationPermission();
+        if (status !== 'granted') {
+          updateSharedSnapshot({
+            coordinates: DEFAULT_COORDINATES,
+            hasRealLocation: false,
+            isLoadingLocation: false,
+          });
+          return DEFAULT_COORDINATES;
+        }
+
+        return await new Promise<Coordinates>(resolve => {
+          Geolocation.getCurrentPosition(
+            position => {
+              const nextCoordinates: Coordinates = {
+                latitude: position.coords.latitude,
+                longitude: position.coords.longitude,
+              };
+              updateSharedSnapshot({
+                coordinates: nextCoordinates,
+                hasRealLocation: true,
+                isLoadingLocation: false,
+              });
+              resolve(nextCoordinates);
+            },
+            () => {
+              updateSharedSnapshot({
+                coordinates: DEFAULT_COORDINATES,
+                hasRealLocation: false,
+                isLoadingLocation: false,
+              });
+              resolve(DEFAULT_COORDINATES);
+            },
+            {
+              enableHighAccuracy: true,
+              timeout: 10000,
+              maximumAge: 0,
+            },
+          );
+        });
+      } finally {
+        inFlightPositionPromise = null;
+      }
+    })();
+
+    return inFlightPositionPromise;
   }, [requestLocationPermission]);
 
   useEffect(() => {
-    fetchCurrentPosition();
-  }, [fetchCurrentPosition]);
+    if (autoFetch && !hasInitialFetchStarted) {
+      fetchCurrentPosition();
+    }
+  }, [autoFetch, fetchCurrentPosition]);
 
   return {
-    coordinates,
-    hasRealLocation,
-    isLoadingLocation,
+    coordinates: snapshot.coordinates,
+    hasRealLocation: snapshot.hasRealLocation,
+    isLoadingLocation: snapshot.isLoadingLocation,
     permissionState,
     isGranted,
     refreshLocation: fetchCurrentPosition,

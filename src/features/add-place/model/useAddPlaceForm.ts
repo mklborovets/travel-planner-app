@@ -38,7 +38,7 @@ export const useAddPlaceForm = () => {
   const navigation = useNavigation<AddPlaceNavigationProp>();
   const route = useRoute<AddPlaceRouteProp>();
   const addPlace = usePlacesStore(state => state.addPlace);
-  const {refreshLocation} = useCurrentLocation();
+  const {refreshLocation} = useCurrentLocation({autoFetch: false});
 
   const getValidDraft = useAddPlaceDraftStore(state => state.getValidDraft);
   const saveDraft = useAddPlaceDraftStore(state => state.saveDraft);
