@@ -44,19 +44,38 @@ export const formatTripShareMessage = (
   items: TripItem[],
   placesById: Record<string, Place>,
 ): string => {
-  const ordered = [...items].sort((first, second) => first.order - second.order);
-  const lines = ordered
+  const ordered = [...items].sort(
+    (first, second) => first.order - second.order,
+  );
+  let visitedCount = 0;
+
+  const stopBlocks = ordered
     .map((item, index) => {
       const place = placesById[item.placeId];
       if (!place) {
         return null;
       }
+      if (item.isVisited) {
+        visitedCount += 1;
+      }
       const statusText = item.isVisited ? '[Visited]' : '[Planned]';
-      return `${index + 1}. ${statusText} ${place.title} - ${place.address}`;
+      const mapUrl = buildPlaceMapUrl(
+        place.coordinates.latitude,
+        place.coordinates.longitude,
+      );
+      return [
+        `#${index + 1} ${statusText} ${place.title}`,
+        `   Address: ${place.address}`,
+        `   Map: ${mapUrl}`,
+      ].join('\n');
     })
-    .filter((line): line is string => Boolean(line));
+    .filter((block): block is string => Boolean(block));
 
-  return `${tripTitle}\n\n${lines.join('\n')}`;
+  const header = `${tripTitle} (${visitedCount}/${stopBlocks.length} visited)`;
+  if (stopBlocks.length === 0) {
+    return `${header}\n\nNo stops added yet.`;
+  }
+  return `${header}\n\n${stopBlocks.join('\n\n')}`;
 };
 
 export const shareTripSummary = async (

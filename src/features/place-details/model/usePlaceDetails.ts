@@ -39,6 +39,9 @@ export const usePlaceDetails = () => {
   );
   const addPlaceToTrip = useTripStore(state => state.addPlaceToTrip);
   const removePlaceFromTrip = useTripStore(state => state.removePlaceFromTrip);
+  const removePlaceFromAllTrips = useTripStore(
+    state => state.removePlaceFromAllTrips,
+  );
 
   const {coordinates: userCoordinates} = useCurrentLocation();
   const distanceAnchorMode = useSettingsStore(
@@ -144,10 +147,10 @@ export const usePlaceDetails = () => {
     if (!place) {
       return;
     }
-    removePlaceFromTrip(place.id);
+    removePlaceFromAllTrips(place.id);
     removePlace(place.id);
     navigation.goBack();
-  }, [place, removePlaceFromTrip, removePlace, navigation]);
+  }, [place, removePlaceFromAllTrips, removePlace, navigation]);
 
   const handleGoBack = useCallback(() => {
     navigation.goBack();

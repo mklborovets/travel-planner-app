@@ -2,6 +2,8 @@ import React from 'react';
 import {Pressable, Text, View} from 'react-native';
 import {
   CheckSquare,
+  ChevronDown,
+  ChevronUp,
   Map,
   MapPin,
   Navigation,
@@ -18,7 +20,11 @@ export interface TripItemRowProps {
   categoryTextClassName: string;
   distanceLabel: string;
   isVisited: boolean;
+  canMoveUp: boolean;
+  canMoveDown: boolean;
   onToggleVisited: () => void;
+  onMoveUp: () => void;
+  onMoveDown: () => void;
   onPressDetails: () => void;
   onPressFocusMap: () => void;
   onPressRemove: () => void;
@@ -33,7 +39,11 @@ export const TripItemRow: React.FC<TripItemRowProps> = ({
   categoryTextClassName,
   distanceLabel,
   isVisited,
+  canMoveUp,
+  canMoveDown,
   onToggleVisited,
+  onMoveUp,
+  onMoveDown,
   onPressDetails,
   onPressFocusMap,
   onPressRemove,
@@ -64,7 +74,8 @@ export const TripItemRow: React.FC<TripItemRowProps> = ({
                 #{stepNumber}
               </Text>
             </View>
-            <View className={`rounded-full px-2.5 py-0.5 ${categoryBadgeClassName}`}>
+            <View
+              className={`rounded-full px-2.5 py-0.5 ${categoryBadgeClassName}`}>
               <Text className={`text-xs font-semibold ${categoryTextClassName}`}>
                 {categoryLabel}
               </Text>
@@ -98,6 +109,31 @@ export const TripItemRow: React.FC<TripItemRowProps> = ({
         </Pressable>
 
         <View className="flex-row items-center">
+          <View className="mr-1.5 items-center">
+            <Pressable
+              onPress={onMoveUp}
+              disabled={!canMoveUp}
+              hitSlop={4}
+              className={
+                canMoveUp
+                  ? 'mb-1 h-7 w-7 items-center justify-center rounded-lg bg-slate-100'
+                  : 'mb-1 h-7 w-7 items-center justify-center rounded-lg bg-slate-50 opacity-40'
+              }>
+              <ChevronUp size={14} color="#334155" />
+            </Pressable>
+            <Pressable
+              onPress={onMoveDown}
+              disabled={!canMoveDown}
+              hitSlop={4}
+              className={
+                canMoveDown
+                  ? 'h-7 w-7 items-center justify-center rounded-lg bg-slate-100'
+                  : 'h-7 w-7 items-center justify-center rounded-lg bg-slate-50 opacity-40'
+              }>
+              <ChevronDown size={14} color="#334155" />
+            </Pressable>
+          </View>
+
           <Pressable
             onPress={onPressFocusMap}
             hitSlop={8}
@@ -115,4 +151,3 @@ export const TripItemRow: React.FC<TripItemRowProps> = ({
     </View>
   );
 };
-
