@@ -1,79 +1,184 @@
-This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
+# Travel Planner & Places Explorer
 
-# Getting Started
+A modern mobile application for trip planning, saving favorite locations, and building tourist itineraries, built with **React Native CLI**, **TypeScript**, and **Feature-Sliced Design (FSD)** architecture.
 
->**Note**: Make sure you have completed the [React Native - Environment Setup](https://reactnative.dev/docs/environment-setup) instructions till "Creating a new application" step, before proceeding.
+---
 
-## Step 1: Start the Metro Server
+## Key Features
 
-First, you will need to start **Metro**, the JavaScript _bundler_ that ships _with_ React Native.
+### 1. Interactive Map and Street Routing
+- **Custom Categories & Markers:** 12 categorized place types with native bitmap caching (`tracksViewChanges` auto-disabled after 150ms for smooth map panning and zooming).
+- **Street Routing (OSRM API):** Automatic route geometry generation along actual streets with in-memory segment caching and seamless offline fallback to straight lines.
+- **3-State Route Polyline:**
+  - **Completed Segment (`completed`):** Solid emerald line connecting visited stops.
+  - **Active Next Stop (`active_next`):** Accent dashed amber line pointing to the nearest upcoming stop.
+  - **Remaining Route (`upcoming`):** Subtle blue dashed line for the rest of the planned itinerary.
+- **Controls & POI Handling:** Map zoom buttons, compass button to reset north orientation (`heading: 0`), location centering, and tap-to-add support for arbitrary coordinates or points of interest (POI) with reverse geocoding.
+- **Viewport Culling:** Intelligent marker virtualization based on visible map bounds for optimal performance when rendering large collections of places.
 
-To start Metro, run the following command from the _root_ of your React Native project:
+### 2. Places Collection and Filtering
+- **Place Categories:** Coffee, Restaurants, Museums, Parks, Sightseeing, Hotels, Shopping, Nature, Entertainment, Bars, Transport, and Others.
+- **Offline Persistence:** Places, trips, and application settings are persisted locally via Zustand with `@react-native-async-storage/async-storage`.
+- **Search & Sorting:** Debounced search query matching titles, addresses, and notes; sorting by distance, alphabetical name (A-Z), or date added.
+- **Dynamic Distance Anchor:** Haversine distance calculations relative to current GPS or a custom city anchor (Lviv, Kyiv, Warsaw, Rome, Paris, or custom search).
+- **Pull-to-Refresh:** Instant GPS and distance refresh via swipe down.
 
-```bash
-# using npm
-npm start
+### 3. Spatial Search (Nominatim OpenStreetMap)
+- **4 Search Modes:**
+  1. **Worldwide:** Global queries without bounding constraints.
+  2. **By Country:** Search restricted by 2-letter ISO country codes (UA, PL, IT, FR, DE, etc.).
+  3. **City + Radius:** Bounded rectangular `viewbox` and exact radial distance (2, 5, 10, 25 km) around a city center.
+  4. **Near Me:** Proximity search within radius from current location or active distance anchor.
+- **Query Optimization:** 450ms debounce delay (`useDebounce`) and 5-minute request caching via **TanStack React Query v5**.
+- **Result Actions:** Instant save to collection ("Save Place") or save with direct itinerary insertion ("Save + Add to Trip").
 
-# OR using Yarn
-yarn start
+### 4. Multi-Trip Itinerary Planner
+- **Multiple Trips Management:** Create, switch, and delete independent itineraries.
+- **Progress Tracking:** Check-off visited locations with automatic progress percentage and progress bar updates.
+- **Drag & Drop Reordering (60 FPS Native Driver):** Native spring animations on gesture drag handle (`GripVertical`) with smooth neighboring card shifts without intermediate store mutations.
+- **Smart Route Builder:** Optimize stop order using a greedy nearest-neighbor algorithm starting from your current location or a selected stop without backtracking.
+- **Clipboard Import/Export:** Formatted text export with Google Maps links and safe JSON payload parser for importing shared travel routes.
+
+### 5. Add Place Form & Smart Input
+- **Bidirectional Coordinate & Address Resolution:** Entering an address auto-fills coordinates via geocoding; entering or picking coordinates auto-resolves street address and category via reverse geocoding.
+- **Smart Coordinate Pasting:** Automatically parses coordinate pairs like `49.84166, 24.03533` pasted into either coordinate field.
+- **In-Memory Draft with 20-min TTL:** Form fields are preserved when switching tabs and safely cleared upon save or reset.
+
+---
+
+## Architecture (Feature-Sliced Design)
+
+The codebase strictly adheres to **Feature-Sliced Design (FSD)** principles and the **"Zero Logic in UI"** rule: presentation components focus entirely on layout and view rendering, while business logic, store access, mathematical formulas, and asynchronous side-effects reside within dedicated hooks.
+
+```text
+src/
+├── app/                        # Application bootstrap, providers, root navigation
+│   ├── navigation/
+│   │   ├── AppNavigator.tsx        # NativeStack Navigator (MainTabs, PlaceDetails, AddPlace)
+│   │   └── BottomTabNavigator.tsx  # BottomTab Navigator (Places, Map, Search, Trip)
+│   └── App.tsx
+│
+├── screens/                    # Application screens (pure UI composition and feature hook invocation)
+│   ├── HomeScreen.tsx
+│   ├── MapScreen.tsx
+│   ├── SearchScreen.tsx
+│   ├── PlaceDetailsScreen.tsx
+│   ├── AddPlaceScreen.tsx
+│   └── TripScreen.tsx
+│
+├── widgets/                    # Composite self-contained UI blocks and modal sheets
+│   ├── category-picker-modal/  # 12-category selection modal
+│   ├── home-filter-modal/      # Filter and distance anchor selection modal
+│   ├── map-place-preview/      # Bottom preview card for selected map marker
+│   ├── map-tapped-point-card/  # Tapped coordinate card with Quick Save option
+│   ├── route-builder-modal/    # Smart Route Builder modal
+│   ├── search-filter-modal/    # Spatial search settings modal
+│   ├── search-result-card/     # OpenStreetMap search result card
+│   ├── trip-item-card/         # Itinerary stop row with drag-and-drop handle
+│   └── trip-selector-modal/    # Modal for switching, creating, and importing trips
+│
+├── features/                   # Screen-level business scenarios and custom hooks
+│   ├── add-place/              # Form hook (useAddPlaceForm), Zod schema, draft store
+│   ├── filter-places/          # Filter, sort, and distance calculation hook (useFilteredPlaces)
+│   ├── map-explorer/           # Camera control, marker tracking, and OSRM hook (useMapExplorer)
+│   ├── place-details/          # Place details, sharing, and clipboard hook (usePlaceDetails)
+│   ├── search-places/          # TanStack Query search hook (usePlacesSearch)
+│   └── trip-planner/           # Multi-trip and drag coordinator hook (useTripPlanner)
+│
+├── entities/                   # Business entities, types, and Zustand stores
+│   ├── place/                  # types.ts, placesStore.ts, placesApi.ts, PlaceCard, PlaceMarker
+│   ├── trip/                   # types.ts, tripStore.ts, TripProgressBar
+│   └── settings/               # types.ts, settingsStore.ts
+│
+└── shared/                     # Reusable infrastructure, utilities, configurations, and atomic UI
+    ├── api/                    # apiClient (Axios), queryClient (TanStack Query)
+    ├── config/                 # categories.ts, mapStyles.ts, searchOptions.ts
+    ├── lib/                    # location.ts, share.ts, useCurrentLocation.ts, useDebounce.ts, etc.
+    ├── storage/                # zustandStorage (AsyncStorage adapter)
+    ├── types/                  # navigation.ts (type-safe navigation routes)
+    └── ui/                     # CategoryChip, EmptyState, SearchInput, BottomSheetModal
 ```
 
-## Step 2: Start your Application
+---
 
-Let Metro Bundler run in its _own_ terminal. Open a _new_ terminal from the _root_ of your React Native project. Run the following command to start your _Android_ or _iOS_ app:
+## Tech Stack
 
-### For Android
+| Category | Technologies |
+| :--- | :--- |
+| **Core** | React Native 0.76.7, React 18.3.1, TypeScript 5.0.4 |
+| **Styling** | NativeWind 2.0 (Tailwind CSS 3.3), StyleSheet |
+| **Client State** | Zustand 5.0 + Persist Middleware (`@react-native-async-storage/async-storage`) |
+| **Server State** | TanStack React Query 5.62 + Axios 1.7 |
+| **Navigation** | React Navigation 6 (Native Stack, Bottom Tabs), React Native Screens 4, Safe Area Context |
+| **Mapping & Location** | React Native Maps 1.18, React Native Geolocation Service 5.3, React Native Permissions 5.2 |
+| **Animations & Forms** | React Native Reanimated 3.16, Animated API (Native Driver), React Hook Form 7.54, Zod 3.24 |
+| **Icons** | Lucide React Native 0.469, React Native SVG 15.9 |
 
+---
+
+## Getting Started
+
+### Prerequisites
+- **Node.js** (`>= 18`)
+- **JDK 17** (for Android)
+- **Xcode** & **CocoaPods** (for iOS on macOS)
+- Configured Android SDK or iOS Simulator
+
+### 1. Clone & Install Dependencies
 ```bash
-# using npm
+git clone https://github.com/mklborovets/travel-planner-app.git
+cd travel-planner-app
+npm install
+```
+
+### 2. Install CocoaPods (iOS)
+```bash
+cd ios
+pod install
+cd ..
+```
+
+### 3. Start Metro Bundler
+```bash
+npm start
+```
+
+### 4. Run Application
+```bash
+# Run on Android
 npm run android
 
-# OR using Yarn
-yarn android
+# Run on iOS
+npm run ios
 ```
 
-### For iOS
+---
+
+## Code Quality & Verification
+
+The project includes strict static analysis and testing scripts:
 
 ```bash
-# using npm
-npm run ios
+# TypeScript type check
+npm run typecheck
 
-# OR using Yarn
-yarn ios
+# ESLint inspection
+npm run lint
+
+# Run unit tests
+npm test
 ```
 
-If everything is set up _correctly_, you should see your new app running in your _Android Emulator_ or _iOS Simulator_ shortly provided you have set up your emulator/simulator correctly.
+---
 
-This is one way to run your app — you can also run it directly from within Android Studio and Xcode respectively.
+## Permissions & Native Configuration
 
-## Step 3: Modifying your App
+- **iOS (`Info.plist`):** `NSLocationWhenInUseUsageDescription` and `NSLocationAlwaysAndWhenInUseUsageDescription` configured for device location access.
+- **Android (`AndroidManifest.xml`):** Permissions configured for `ACCESS_FINE_LOCATION`, `ACCESS_COARSE_LOCATION`, `INTERNET`, and Google Maps API metadata.
+- **Android Lifecycle (`MainActivity.kt`):** `super.onCreate(null)` configured for crash-free screen recreation in `react-native-screens`.
 
-Now that you have successfully run the app, let's modify it.
+---
 
-1. Open `App.tsx` in your text editor of choice and edit some lines.
-2. For **Android**: Press the <kbd>R</kbd> key twice or select **"Reload"** from the **Developer Menu** (<kbd>Ctrl</kbd> + <kbd>M</kbd> (on Window and Linux) or <kbd>Cmd ⌘</kbd> + <kbd>M</kbd> (on macOS)) to see your changes!
+## License
 
-   For **iOS**: Hit <kbd>Cmd ⌘</kbd> + <kbd>R</kbd> in your iOS Simulator to reload the app and see your changes!
-
-## Congratulations! :tada:
-
-You've successfully run and modified your React Native App. :partying_face:
-
-### Now what?
-
-- If you want to add this new React Native code to an existing application, check out the [Integration guide](https://reactnative.dev/docs/integration-with-existing-apps).
-- If you're curious to learn more about React Native, check out the [Introduction to React Native](https://reactnative.dev/docs/getting-started).
-
-# Troubleshooting
-
-If you can't get this to work, see the [Troubleshooting](https://reactnative.dev/docs/troubleshooting) page.
-
-# Learn More
-
-To learn more about React Native, take a look at the following resources:
-
-- [React Native Website](https://reactnative.dev) - learn more about React Native.
-- [Getting Started](https://reactnative.dev/docs/environment-setup) - an **overview** of React Native and how setup your environment.
-- [Learn the Basics](https://reactnative.dev/docs/getting-started) - a **guided tour** of the React Native **basics**.
-- [Blog](https://reactnative.dev/blog) - read the latest official React Native **Blog** posts.
-- [`@facebook/react-native`](https://github.com/facebook/react-native) - the Open Source; GitHub **repository** for React Native.
+This project is developed for educational and demonstration purposes under the [MIT](LICENSE) License.
