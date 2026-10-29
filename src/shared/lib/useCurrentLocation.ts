@@ -17,36 +17,41 @@ export const useCurrentLocation = () => {
   const [hasRealLocation, setHasRealLocation] = useState<boolean>(false);
   const [isLoadingLocation, setIsLoadingLocation] = useState<boolean>(false);
 
-  const fetchCurrentPosition = useCallback(async () => {
+  const fetchCurrentPosition = useCallback(async (): Promise<Coordinates> => {
     setIsLoadingLocation(true);
     const status = await requestLocationPermission();
     if (status !== 'granted') {
       setCoordinates(DEFAULT_COORDINATES);
       setHasRealLocation(false);
       setIsLoadingLocation(false);
-      return;
+      return DEFAULT_COORDINATES;
     }
 
-    Geolocation.getCurrentPosition(
-      position => {
-        setCoordinates({
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-        });
-        setHasRealLocation(true);
-        setIsLoadingLocation(false);
-      },
-      () => {
-        setCoordinates(DEFAULT_COORDINATES);
-        setHasRealLocation(false);
-        setIsLoadingLocation(false);
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 30000,
-      },
-    );
+    return new Promise<Coordinates>(resolve => {
+      Geolocation.getCurrentPosition(
+        position => {
+          const nextCoordinates: Coordinates = {
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+          };
+          setCoordinates(nextCoordinates);
+          setHasRealLocation(true);
+          setIsLoadingLocation(false);
+          resolve(nextCoordinates);
+        },
+        () => {
+          setCoordinates(DEFAULT_COORDINATES);
+          setHasRealLocation(false);
+          setIsLoadingLocation(false);
+          resolve(DEFAULT_COORDINATES);
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 0,
+        },
+      );
+    });
   }, [requestLocationPermission]);
 
   useEffect(() => {
@@ -63,4 +68,3 @@ export const useCurrentLocation = () => {
     openPermissionSettings,
   };
 };
-

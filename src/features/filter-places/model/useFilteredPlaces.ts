@@ -1,5 +1,9 @@
 import {useCallback, useMemo, useState} from 'react';
-import {CompositeNavigationProp, useNavigation} from '@react-navigation/native';
+import {
+  CompositeNavigationProp,
+  useFocusEffect,
+  useNavigation,
+} from '@react-navigation/native';
 import {BottomTabNavigationProp} from '@react-navigation/bottom-tabs';
 import {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {usePlacesStore} from '../../../entities/place/model/placesStore';
@@ -38,12 +42,25 @@ export const useFilteredPlaces = () => {
   const navigation = useNavigation<HomeScreenNavigationProp>();
   const places = usePlacesStore(state => state.places);
   const toggleFavorite = usePlacesStore(state => state.toggleFavorite);
-  const {coordinates: userCoordinates} = useCurrentLocation();
+  const {coordinates: userCoordinates, refreshLocation} = useCurrentLocation();
 
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedCategory, setSelectedCategory] =
     useState<FilterCategory>('all');
   const [onlyFavorites, setOnlyFavorites] = useState<boolean>(false);
+  const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
+
+  useFocusEffect(
+    useCallback(() => {
+      refreshLocation();
+    }, [refreshLocation]),
+  );
+
+  const handlePullToRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    await refreshLocation();
+    setIsRefreshing(false);
+  }, [refreshLocation]);
 
   const filteredPlaceCards: PlaceCardItemViewModel[] = useMemo(() => {
     const normalizedSearch = searchQuery.trim().toLowerCase();
@@ -134,10 +151,11 @@ export const useFilteredPlaces = () => {
     handleToggleFavoritesOnly,
     filteredPlaceCards,
     totalPlacesCount: places.length,
+    isRefreshing,
+    handlePullToRefresh,
     toggleFavorite,
     handleOpenPlaceDetails,
     handleOpenAddPlace,
     handleResetFilters,
   };
 };
-

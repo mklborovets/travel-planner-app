@@ -1,5 +1,12 @@
 import React from 'react';
-import {FlatList, Pressable, ScrollView, Text, View} from 'react-native';
+import {
+  FlatList,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  Text,
+  View,
+} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {Heart, Plus} from 'lucide-react-native';
 import {PlaceCard} from '../entities/place/ui/PlaceCard';
@@ -25,6 +32,8 @@ export const HomeScreen: React.FC = () => {
     handleToggleFavoritesOnly,
     filteredPlaceCards,
     totalPlacesCount,
+    isRefreshing,
+    handlePullToRefresh,
     toggleFavorite,
     handleOpenPlaceDetails,
     handleOpenAddPlace,
@@ -99,6 +108,14 @@ export const HomeScreen: React.FC = () => {
       <FlatList
         data={filteredPlaceCards}
         keyExtractor={keyExtractor}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={handlePullToRefresh}
+            tintColor="#2563eb"
+            colors={['#2563eb']}
+          />
+        }
         contentContainerStyle={{
           paddingHorizontal: 16,
           paddingTop: 8,
