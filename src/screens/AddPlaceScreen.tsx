@@ -1,5 +1,6 @@
 import React from 'react';
 import {
+  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -9,7 +10,13 @@ import {
   View,
 } from 'react-native';
 import {Controller} from 'react-hook-form';
-import {Check, Crosshair, LayoutGrid} from 'lucide-react-native';
+import {
+  Check,
+  Crosshair,
+  LayoutGrid,
+  RotateCcw,
+  Search,
+} from 'lucide-react-native';
 import {useAddPlaceForm} from '../features/add-place/model/useAddPlaceForm';
 import {CategoryChip} from '../shared/ui/CategoryChip';
 import {CategoryPickerModal} from '../widgets/category-picker-modal/ui/CategoryPickerModal';
@@ -18,6 +25,9 @@ export const AddPlaceScreen: React.FC = () => {
   const {
     control,
     errors,
+    isSubmitting,
+    isResolvingLocation,
+    resolutionStatusMessage,
     categories,
     quickCategories,
     selectedCategory,
@@ -29,6 +39,8 @@ export const AddPlaceScreen: React.FC = () => {
     handleLatitudeInputChange,
     handleLongitudeInputChange,
     handleUseCurrentCoordinates,
+    handleResolveCoordinatesFromAddress,
+    handleClearAllFields,
     handleSubmitForm,
   } = useAddPlaceForm();
 
@@ -39,6 +51,21 @@ export const AddPlaceScreen: React.FC = () => {
       <ScrollView
         contentContainerStyle={{padding: 16, paddingBottom: 40}}
         keyboardShouldPersistTaps="handled">
+        <View className="mb-3 flex-row items-center justify-between">
+          <Text className="flex-1 pr-2 text-xs font-medium text-slate-500">
+            Provide either an address or coordinates — the other fills
+            automatically.
+          </Text>
+          <Pressable
+            onPress={handleClearAllFields}
+            className="flex-row items-center rounded-xl border border-slate-200 bg-white px-3 py-1.5">
+            <RotateCcw size={13} color="#475569" />
+            <Text className="ml-1.5 text-xs font-bold text-slate-700">
+              Clear All
+            </Text>
+          </Pressable>
+        </View>
+
         <View className="mb-4">
           <Text className="mb-1.5 text-sm font-semibold text-slate-700">
             Title *
@@ -65,9 +92,20 @@ export const AddPlaceScreen: React.FC = () => {
         </View>
 
         <View className="mb-4">
-          <Text className="mb-1.5 text-sm font-semibold text-slate-700">
-            Address *
-          </Text>
+          <View className="mb-1.5 flex-row items-center justify-between">
+            <Text className="text-sm font-semibold text-slate-700">
+              Address (or fill via Coordinates)
+            </Text>
+            <Pressable
+              onPress={handleResolveCoordinatesFromAddress}
+              disabled={isResolvingLocation}
+              className="flex-row items-center rounded-lg bg-slate-200/80 px-2.5 py-1">
+              <Search size={12} color="#334155" />
+              <Text className="ml-1 text-xs font-semibold text-slate-700">
+                Find Coordinates
+              </Text>
+            </Pressable>
+          </View>
           <Controller
             control={control}
             name="address"
@@ -119,26 +157,35 @@ export const AddPlaceScreen: React.FC = () => {
         </View>
 
         <View className="mb-4">
-          <View className="mb-1.5 flex-row items-center justify-between">
-            <View>
-              <Text className="text-sm font-semibold text-slate-700">
-                Coordinates *
-              </Text>
-              <Text className="text-[11px] text-slate-400">
-                Tip: Paste &quot;49.84166, 24.03533&quot; to auto-fill both fields
-              </Text>
-            </View>
-            <Pressable
-              onPress={handleUseCurrentCoordinates}
-              className="flex-row items-center rounded-lg bg-blue-50 px-2.5 py-1.5">
-              <Crosshair size={14} color="#2563eb" />
-              <Text className="ml-1.5 text-xs font-semibold text-blue-600">
-                Use Current Location
-              </Text>
-            </Pressable>
-          </View>
+          <Text className="mb-0.5 text-sm font-semibold text-slate-700">
+            Coordinates (or fill via Address)
+          </Text>
+          <Text className="mb-2 text-xs text-slate-400">
+            Tip: Paste &quot;49.84166, 24.03533&quot; into either box to fill
+            both and auto-detect address
+          </Text>
 
-          <View className="flex-row space-x-3">
+          <Pressable
+            onPress={handleUseCurrentCoordinates}
+            disabled={isResolvingLocation}
+            className="mb-3 flex-row items-center justify-center rounded-xl border border-blue-200 bg-blue-50 py-2.5 px-3">
+            {isResolvingLocation ? (
+              <ActivityIndicator size="small" color="#2563eb" />
+            ) : (
+              <Crosshair size={15} color="#2563eb" />
+            )}
+            <Text className="ml-2 text-xs font-bold text-blue-700">
+              Use Current GPS Location & Auto-Fill Address
+            </Text>
+          </Pressable>
+
+          {resolutionStatusMessage ? (
+            <Text className="mb-2 text-xs font-medium text-blue-600">
+              {resolutionStatusMessage}
+            </Text>
+          ) : null}
+
+          <View className="flex-row">
             <View className="mr-2 flex-1">
               <Text className="mb-1 text-xs text-slate-500">Latitude</Text>
               <Controller
@@ -219,8 +266,13 @@ export const AddPlaceScreen: React.FC = () => {
 
         <Pressable
           onPress={handleSubmitForm}
+          disabled={isSubmitting}
           className="flex-row items-center justify-center rounded-xl bg-blue-600 py-4">
-          <Check size={18} color="#ffffff" />
+          {isSubmitting ? (
+            <ActivityIndicator size="small" color="#ffffff" />
+          ) : (
+            <Check size={18} color="#ffffff" />
+          )}
           <Text className="ml-2 text-base font-bold text-white">
             Save Place
           </Text>
