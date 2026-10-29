@@ -255,10 +255,12 @@ export const usePlacesSearch = () => {
 
   const handleOpenResultDetails = useCallback(
     (place: Place) => {
-      upsertPlace(place);
-      navigation.navigate('PlaceDetails', {placeId: place.id});
+      navigation.navigate('PlaceDetails', {
+        placeId: place.id,
+        previewPlace: place,
+      });
     },
-    [upsertPlace, navigation],
+    [navigation],
   );
 
   const handleClearSearch = useCallback(() => {

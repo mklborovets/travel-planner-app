@@ -9,6 +9,7 @@ import {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {searchNominatimPlaces} from '../../../entities/place/api/placesApi';
 import {usePlacesStore} from '../../../entities/place/model/placesStore';
 import {useSettingsStore} from '../../../entities/settings/model/settingsStore';
+import {useTripStore} from '../../../entities/trip/model/tripStore';
 import {
   CATEGORY_MAP,
   CityAnchorPreset,
@@ -22,6 +23,7 @@ import {
   formatDistance,
 } from '../../../shared/lib/location';
 import {useCurrentLocation} from '../../../shared/lib/useCurrentLocation';
+import {useDebounce} from '../../../shared/lib/useDebounce';
 import {
   MainTabParamList,
   RootStackParamList,
@@ -41,12 +43,16 @@ export interface PlaceCardItemViewModel {
   categoryTextClassName: string;
   distanceLabel: string;
   isFavorite: boolean;
+  isInTrip: boolean;
 }
 
 export const useFilteredPlaces = () => {
   const navigation = useNavigation<HomeScreenNavigationProp>();
   const places = usePlacesStore(state => state.places);
   const toggleFavorite = usePlacesStore(state => state.toggleFavorite);
+  const tripItems = useTripStore(state => state.items);
+  const addPlaceToTrip = useTripStore(state => state.addPlaceToTrip);
+  const removePlaceFromTrip = useTripStore(state => state.removePlaceFromTrip);
   const {coordinates: userCoordinates, refreshLocation} = useCurrentLocation();
 
   const distanceAnchorMode = useSettingsStore(
@@ -64,6 +70,7 @@ export const useFilteredPlaces = () => {
   );
 
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const debouncedSearchQuery = useDebounce(searchQuery, 300);
   const [selectedCategory, setSelectedCategory] =
     useState<FilterCategory>('all');
   const [onlyFavorites, setOnlyFavorites] = useState<boolean>(false);
@@ -114,8 +121,13 @@ export const useFilteredPlaces = () => {
     return count;
   }, [selectedCategory, onlyFavorites, sortBy, distanceAnchorMode]);
 
+  const tripIdsSet = useMemo(
+    () => new Set(tripItems.map(item => item.placeId)),
+    [tripItems],
+  );
+
   const filteredPlaceCards: PlaceCardItemViewModel[] = useMemo(() => {
-    const normalizedSearch = searchQuery.trim().toLowerCase();
+    const normalizedSearch = debouncedSearchQuery.trim().toLowerCase();
 
     const matched = places
       .filter(place => {
@@ -160,6 +172,7 @@ export const useFilteredPlaces = () => {
             categoryTextClassName: categoryConfig.textClassName,
             distanceLabel: formatDistance(distanceKm),
             isFavorite: place.isFavorite,
+            isInTrip: tripIdsSet.has(place.id),
           },
         };
       });
@@ -179,10 +192,22 @@ export const useFilteredPlaces = () => {
     places,
     onlyFavorites,
     selectedCategory,
-    searchQuery,
+    debouncedSearchQuery,
     activeAnchorCoordinates,
     sortBy,
+    tripIdsSet,
   ]);
+
+  const handleTogglePlaceInTrip = useCallback(
+    (placeId: string) => {
+      if (tripIdsSet.has(placeId)) {
+        removePlaceFromTrip(placeId);
+      } else {
+        addPlaceToTrip(placeId);
+      }
+    },
+    [tripIdsSet, removePlaceFromTrip, addPlaceToTrip],
+  );
 
   const handleClearSearch = useCallback(() => {
     setSearchQuery('');
@@ -296,6 +321,7 @@ export const useFilteredPlaces = () => {
     isRefreshing,
     handlePullToRefresh,
     toggleFavorite,
+    handleTogglePlaceInTrip,
     handleOpenPlaceDetails,
     handleOpenAddPlace,
     handleResetFilters,

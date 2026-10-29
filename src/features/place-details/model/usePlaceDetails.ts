@@ -26,11 +26,15 @@ type PlaceDetailsNavigationProp = NativeStackNavigationProp<
 export const usePlaceDetails = () => {
   const route = useRoute<PlaceDetailsRouteProp>();
   const navigation = useNavigation<PlaceDetailsNavigationProp>();
-  const {placeId} = route.params;
+  const {placeId, previewPlace} = route.params;
 
-  const place = usePlacesStore(state =>
+  const savedPlace = usePlacesStore(state =>
     state.places.find(item => item.id === placeId),
   );
+  const isSaved = Boolean(savedPlace);
+  const place = savedPlace ?? previewPlace;
+
+  const upsertPlace = usePlacesStore(state => state.upsertPlace);
   const toggleFavorite = usePlacesStore(state => state.toggleFavorite);
   const removePlace = usePlacesStore(state => state.removePlace);
 
@@ -94,10 +98,11 @@ export const usePlaceDetails = () => {
       categoryTextClassName: categoryConfig.textClassName,
       formattedCoordinates: formatCoordinates(place.coordinates),
       distanceLabel: formatDistance(distanceKm),
-      isFavorite: place.isFavorite,
+      isSaved,
+      isFavorite: savedPlace ? savedPlace.isFavorite : false,
       isInTrip,
     };
-  }, [place, originCoordinates, isInTrip]);
+  }, [place, savedPlace, isSaved, originCoordinates, isInTrip]);
 
   const handleCopyAddress = useCallback(() => {
     if (!place) {
@@ -134,12 +139,23 @@ export const usePlaceDetails = () => {
     await sharePlaceDetails(place);
   }, [place]);
 
+  const handleSavePlace = useCallback(() => {
+    if (!place) {
+      return;
+    }
+    upsertPlace(place);
+  }, [place, upsertPlace]);
+
   const handleToggleFavorite = useCallback(() => {
     if (!place) {
       return;
     }
+    if (!isSaved) {
+      upsertPlace({...place, isFavorite: true});
+      return;
+    }
     toggleFavorite(place.id);
-  }, [place, toggleFavorite]);
+  }, [place, isSaved, upsertPlace, toggleFavorite]);
 
   const handleToggleTrip = useCallback(() => {
     if (!place) {
@@ -148,22 +164,36 @@ export const usePlaceDetails = () => {
     if (isInTrip) {
       removePlaceFromTrip(place.id);
     } else {
+      if (!isSaved) {
+        upsertPlace(place);
+      }
       addPlaceToTrip(place.id);
     }
-  }, [place, isInTrip, removePlaceFromTrip, addPlaceToTrip]);
+  }, [
+    place,
+    isInTrip,
+    isSaved,
+    upsertPlace,
+    removePlaceFromTrip,
+    addPlaceToTrip,
+  ]);
 
   const handleOpenOnMap = useCallback(() => {
     if (!place) {
       return;
+    }
+    if (!isSaved) {
+      upsertPlace(place);
     }
     navigation.navigate('MainTabs', {
       screen: 'MapTab',
       params: {
         focusCoordinates: place.coordinates,
         selectedPlaceId: place.id,
+        focusTimestamp: Date.now(),
       },
     });
-  }, [navigation, place]);
+  }, [navigation, place, isSaved, upsertPlace]);
 
   const handleDeletePlace = useCallback(() => {
     if (!place) {
@@ -185,6 +215,7 @@ export const usePlaceDetails = () => {
     handleCopyAddress,
     handleCopyCoordinates,
     handleSharePlace,
+    handleSavePlace,
     handleToggleFavorite,
     handleToggleTrip,
     handleOpenOnMap,

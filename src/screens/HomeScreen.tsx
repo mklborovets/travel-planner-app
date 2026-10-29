@@ -58,6 +58,7 @@ export const HomeScreen: React.FC = () => {
     isRefreshing,
     handlePullToRefresh,
     toggleFavorite,
+    handleTogglePlaceInTrip,
     handleOpenPlaceDetails,
     handleOpenAddPlace,
     handleResetFilters,
@@ -67,43 +68,53 @@ export const HomeScreen: React.FC = () => {
     <SafeAreaView edges={['top']} className="flex-1 bg-slate-50">
       <View className="px-4 pt-3 pb-2">
         <View className="mb-3 flex-row items-center justify-between">
-          <View>
-            <Text className="text-2xl font-extrabold text-slate-900">
-              Saved Places
-            </Text>
-            <View className="mt-0.5 flex-row items-center">
-              <Text className="text-xs font-medium text-slate-500">
-                {filteredPlaceCards.length} of {totalPlacesCount}
+          <View className="mr-3 flex-1">
+            <View className="flex-row items-baseline">
+              <Text
+                numberOfLines={1}
+                className="text-2xl font-extrabold text-slate-900">
+                Saved Places
               </Text>
-              <Text className="mx-1.5 text-xs text-slate-300">|</Text>
-              <Pressable
-                onPress={handleOpenFilterModal}
-                className="flex-row items-center">
-                {distanceAnchorMode === 'gps' ? (
-                  <LocateFixed size={11} color="#2563eb" />
-                ) : (
-                  <MapPin size={11} color="#2563eb" />
-                )}
-                <Text className="ml-1 text-xs font-semibold text-blue-600">
-                  From: {activeAnchorLabel}
+              <View className="ml-2 rounded-lg bg-slate-200/80 px-2 py-0.5">
+                <Text
+                  style={{fontVariant: ['tabular-nums']}}
+                  className="text-xs font-bold text-slate-700">
+                  {filteredPlaceCards.length} / {totalPlacesCount}
                 </Text>
-              </Pressable>
+              </View>
             </View>
+            <Pressable
+              onPress={handleOpenFilterModal}
+              className="mt-1 flex-row items-center self-start">
+              {distanceAnchorMode === 'gps' ? (
+                <LocateFixed size={11} color="#2563eb" />
+              ) : (
+                <MapPin size={11} color="#2563eb" />
+              )}
+              <Text
+                numberOfLines={1}
+                className="ml-1 text-xs font-semibold text-blue-600">
+                From: {activeAnchorLabel}
+              </Text>
+            </Pressable>
           </View>
-          <View className="flex-row items-center">
+
+          <View className="flex-shrink-0 flex-row items-center">
             <Pressable
               onPress={handleOpenFilterModal}
               className={
                 activeFiltersCount > 0
-                  ? 'mr-2 flex-row items-center rounded-xl border border-blue-200 bg-blue-50 px-3 py-2.5'
-                  : 'mr-2 flex-row items-center rounded-xl border border-slate-200 bg-white px-3 py-2.5'
+                  ? 'mr-2 h-10 min-w-[40px] flex-row items-center justify-center rounded-xl border border-blue-200 bg-blue-50 px-2.5'
+                  : 'mr-2 h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white'
               }>
               <SlidersHorizontal
                 size={16}
                 color={activeFiltersCount > 0 ? '#2563eb' : '#475569'}
               />
               {activeFiltersCount > 0 ? (
-                <Text className="ml-1.5 text-xs font-bold text-blue-600">
+                <Text
+                  style={{fontVariant: ['tabular-nums']}}
+                  className="ml-1 text-xs font-bold text-blue-600">
                   {activeFiltersCount}
                 </Text>
               ) : null}
@@ -112,8 +123,8 @@ export const HomeScreen: React.FC = () => {
               onPress={handleToggleFavoritesOnly}
               className={
                 onlyFavorites
-                  ? 'mr-2 flex-row items-center rounded-xl border border-red-200 bg-red-50 px-3 py-2.5'
-                  : 'mr-2 flex-row items-center rounded-xl border border-slate-200 bg-white px-3 py-2.5'
+                  ? 'mr-2 h-10 w-10 items-center justify-center rounded-xl border border-red-200 bg-red-50'
+                  : 'mr-2 h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white'
               }>
               <Heart
                 size={16}
@@ -123,7 +134,7 @@ export const HomeScreen: React.FC = () => {
             </Pressable>
             <Pressable
               onPress={handleOpenAddPlace}
-              className="flex-row items-center rounded-xl bg-blue-600 px-3.5 py-2.5">
+              className="h-10 flex-row items-center justify-center rounded-xl bg-blue-600 px-3.5">
               <Plus size={16} color="#ffffff" />
               <Text className="ml-1 text-xs font-bold text-white">Add</Text>
             </Pressable>
@@ -178,8 +189,10 @@ export const HomeScreen: React.FC = () => {
             categoryTextClassName={item.categoryTextClassName}
             distanceLabel={item.distanceLabel}
             isFavorite={item.isFavorite}
+            isInTrip={item.isInTrip}
             onPress={() => handleOpenPlaceDetails(item.id)}
             onToggleFavorite={() => toggleFavorite(item.id)}
+            onToggleTrip={() => handleTogglePlaceInTrip(item.id)}
           />
         )}
         ListEmptyComponent={

@@ -1,6 +1,6 @@
 import React from 'react';
 import {Pressable, Text, View} from 'react-native';
-import {Heart, MapPin, Navigation} from 'lucide-react-native';
+import {Heart, MapPin, Navigation, Route} from 'lucide-react-native';
 
 export interface PlaceCardProps {
   title: string;
@@ -10,8 +10,10 @@ export interface PlaceCardProps {
   categoryTextClassName: string;
   distanceLabel?: string;
   isFavorite: boolean;
+  isInTrip: boolean;
   onPress: () => void;
   onToggleFavorite: () => void;
+  onToggleTrip: () => void;
 }
 
 export const PlaceCard: React.FC<PlaceCardProps> = ({
@@ -22,8 +24,10 @@ export const PlaceCard: React.FC<PlaceCardProps> = ({
   categoryTextClassName,
   distanceLabel,
   isFavorite,
+  isInTrip,
   onPress,
   onToggleFavorite,
+  onToggleTrip,
 }) => {
   return (
     <Pressable
@@ -32,7 +36,8 @@ export const PlaceCard: React.FC<PlaceCardProps> = ({
       <View className="flex-row items-start justify-between">
         <View className="flex-1 pr-3">
           <View className="mb-2 flex-row items-center">
-            <View className={`rounded-full px-2.5 py-0.5 ${categoryBadgeClassName}`}>
+            <View
+              className={`rounded-full px-2.5 py-0.5 ${categoryBadgeClassName}`}>
               <Text className={`text-xs font-semibold ${categoryTextClassName}`}>
                 {categoryLabel}
               </Text>
@@ -60,18 +65,33 @@ export const PlaceCard: React.FC<PlaceCardProps> = ({
             </Text>
           </View>
         </View>
-        <Pressable
-          onPress={onToggleFavorite}
-          hitSlop={10}
-          className="h-9 w-9 items-center justify-center rounded-full bg-slate-50">
-          <Heart
-            size={18}
-            color={isFavorite ? '#ef4444' : '#94a3b8'}
-            fill={isFavorite ? '#ef4444' : 'none'}
-          />
-        </Pressable>
+        <View className="flex-row items-center">
+          <Pressable
+            onPress={onToggleTrip}
+            hitSlop={8}
+            className={
+              isInTrip
+                ? 'mr-1.5 h-9 w-9 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50'
+                : 'mr-1.5 h-9 w-9 items-center justify-center rounded-full bg-slate-50'
+            }>
+            <Route size={17} color={isInTrip ? '#059669' : '#94a3b8'} />
+          </Pressable>
+          <Pressable
+            onPress={onToggleFavorite}
+            hitSlop={8}
+            className={
+              isFavorite
+                ? 'h-9 w-9 items-center justify-center rounded-full border border-red-100 bg-red-50'
+                : 'h-9 w-9 items-center justify-center rounded-full bg-slate-50'
+            }>
+            <Heart
+              size={18}
+              color={isFavorite ? '#ef4444' : '#94a3b8'}
+              fill={isFavorite ? '#ef4444' : 'none'}
+            />
+          </Pressable>
+        </View>
       </View>
     </Pressable>
   );
 };
-

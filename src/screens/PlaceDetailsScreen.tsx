@@ -1,6 +1,7 @@
 import React from 'react';
 import {Pressable, ScrollView, Text, View} from 'react-native';
 import {
+  BookmarkPlus,
   Check,
   Compass,
   Copy,
@@ -23,6 +24,7 @@ export const PlaceDetailsScreen: React.FC = () => {
     handleCopyAddress,
     handleCopyCoordinates,
     handleSharePlace,
+    handleSavePlace,
     handleToggleFavorite,
     handleToggleTrip,
     handleOpenOnMap,
@@ -210,14 +212,25 @@ export const PlaceDetailsScreen: React.FC = () => {
           </Pressable>
         </View>
 
-        <Pressable
-          onPress={handleDeletePlace}
-          className="flex-row items-center justify-center rounded-xl border border-slate-200 bg-white py-3.5">
-          <Trash2 size={17} color="#dc2626" />
-          <Text className="ml-2 text-sm font-semibold text-red-600">
-            Delete Saved Place
-          </Text>
-        </Pressable>
+        {detailsViewModel.isSaved ? (
+          <Pressable
+            onPress={handleDeletePlace}
+            className="flex-row items-center justify-center rounded-xl border border-slate-200 bg-white py-3.5">
+            <Trash2 size={17} color="#dc2626" />
+            <Text className="ml-2 text-sm font-semibold text-red-600">
+              Delete Saved Place
+            </Text>
+          </Pressable>
+        ) : (
+          <Pressable
+            onPress={handleSavePlace}
+            className="flex-row items-center justify-center rounded-xl border border-emerald-200 bg-emerald-600 py-3.5">
+            <BookmarkPlus size={18} color="#ffffff" />
+            <Text className="ml-2 text-sm font-bold text-white">
+              Save to My Places
+            </Text>
+          </Pressable>
+        )}
       </View>
     </ScrollView>
   );
