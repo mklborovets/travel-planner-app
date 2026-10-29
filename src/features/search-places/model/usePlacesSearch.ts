@@ -1,4 +1,7 @@
 import {useCallback, useMemo, useState} from 'react';
+import {CompositeNavigationProp, useNavigation} from '@react-navigation/native';
+import {BottomTabNavigationProp} from '@react-navigation/bottom-tabs';
+import {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {useQuery} from '@tanstack/react-query';
 import {
   mapNominatimResultToPlace,
@@ -7,15 +10,31 @@ import {
 import {usePlacesStore} from '../../../entities/place/model/placesStore';
 import {Place} from '../../../entities/place/model/types';
 import {useTripStore} from '../../../entities/trip/model/tripStore';
+import {CATEGORY_MAP} from '../../../shared/config/categories';
+import {formatCoordinates} from '../../../shared/lib/location';
 import {useDebounce} from '../../../shared/lib/useDebounce';
+import {
+  MainTabParamList,
+  RootStackParamList,
+} from '../../../shared/types/navigation';
+
+type SearchScreenNavigationProp = CompositeNavigationProp<
+  BottomTabNavigationProp<MainTabParamList, 'SearchTab'>,
+  NativeStackNavigationProp<RootStackParamList>
+>;
 
 export interface SearchPlaceViewModel {
   place: Place;
+  categoryLabel: string;
+  categoryBadgeClassName: string;
+  categoryTextClassName: string;
+  formattedCoordinates: string;
   isSaved: boolean;
   isInTrip: boolean;
 }
 
 export const usePlacesSearch = () => {
+  const navigation = useNavigation<SearchScreenNavigationProp>();
   const [searchQuery, setSearchQuery] = useState<string>('');
   const debouncedQuery = useDebounce(searchQuery, 450);
 
@@ -25,11 +44,12 @@ export const usePlacesSearch = () => {
   const addPlaceToTrip = useTripStore(state => state.addPlaceToTrip);
 
   const normalizedQuery = debouncedQuery.trim();
+  const hasMinQueryLength = normalizedQuery.length >= 2;
 
   const queryResult = useQuery({
     queryKey: ['nominatim-search', normalizedQuery],
     queryFn: () => searchNominatimPlaces(normalizedQuery),
-    enabled: normalizedQuery.length >= 2,
+    enabled: hasMinQueryLength,
   });
 
   const savedIdsSet = useMemo(
@@ -48,8 +68,13 @@ export const usePlacesSearch = () => {
     }
     return queryResult.data.map(rawItem => {
       const mappedPlace = mapNominatimResultToPlace(rawItem);
+      const categoryConfig = CATEGORY_MAP[mappedPlace.category];
       return {
         place: mappedPlace,
+        categoryLabel: categoryConfig.label,
+        categoryBadgeClassName: categoryConfig.badgeClassName,
+        categoryTextClassName: categoryConfig.textClassName,
+        formattedCoordinates: formatCoordinates(mappedPlace.coordinates),
         isSaved: savedIdsSet.has(mappedPlace.id),
         isInTrip: tripIdsSet.has(mappedPlace.id),
       };
@@ -71,24 +96,37 @@ export const usePlacesSearch = () => {
     [upsertPlace, addPlaceToTrip],
   );
 
+  const handleOpenResultDetails = useCallback(
+    (place: Place) => {
+      upsertPlace(place);
+      navigation.navigate('PlaceDetails', {placeId: place.id});
+    },
+    [upsertPlace, navigation],
+  );
+
   const handleClearSearch = useCallback(() => {
     setSearchQuery('');
   }, []);
+
+  const handleRetry = useCallback(() => {
+    queryResult.refetch();
+  }, [queryResult]);
 
   return {
     searchQuery,
     setSearchQuery,
     handleClearSearch,
-    debouncedQuery: normalizedQuery,
+    hasMinQueryLength,
     results,
-    isLoading: queryResult.isLoading || queryResult.isFetching,
-    isError: queryResult.isError,
+    isLoading: hasMinQueryLength && (queryResult.isLoading || queryResult.isFetching),
+    isError: hasMinQueryLength && queryResult.isError,
     errorMessage:
       queryResult.error instanceof Error
         ? queryResult.error.message
         : 'Unable to fetch places from OpenStreetMap.',
-    refetch: queryResult.refetch,
+    handleRetry,
     handleSavePlace,
     handleSaveAndAddToTrip,
+    handleOpenResultDetails,
   };
 };
