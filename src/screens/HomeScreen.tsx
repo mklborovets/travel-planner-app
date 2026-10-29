@@ -1,10 +1,12 @@
-import React from 'react';
+import React, {useCallback} from 'react';
 import {
   FlatList,
+  ListRenderItem,
   Platform,
   Pressable,
   RefreshControl,
   ScrollView,
+  StyleSheet,
   Text,
   View,
 } from 'react-native';
@@ -29,6 +31,18 @@ import {HomeFilterModal} from '../widgets/home-filter-modal/ui/HomeFilterModal';
 
 const keyExtractor = (item: PlaceCardItemViewModel) => item.id;
 
+const styles = StyleSheet.create({
+  tabularNums: {
+    fontVariant: ['tabular-nums'],
+  },
+  listContent: {
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 24,
+    flexGrow: 1,
+  },
+});
+
 export const HomeScreen: React.FC = () => {
   const {
     searchQuery,
@@ -43,6 +57,7 @@ export const HomeScreen: React.FC = () => {
     setSortBy,
     distanceAnchorMode,
     activeAnchorLabel,
+    selectedCityPresetId,
     activeFiltersCount,
     cityPresets,
     customCityInput,
@@ -65,6 +80,26 @@ export const HomeScreen: React.FC = () => {
     handleOpenAddPlace,
     handleResetFilters,
   } = useFilteredPlaces();
+
+  const renderPlaceItem = useCallback<ListRenderItem<PlaceCardItemViewModel>>(
+    ({item}) => (
+      <PlaceCard
+        placeId={item.id}
+        title={item.title}
+        address={item.address}
+        categoryLabel={item.categoryLabel}
+        categoryBadgeClassName={item.categoryBadgeClassName}
+        categoryTextClassName={item.categoryTextClassName}
+        distanceLabel={item.distanceLabel}
+        isFavorite={item.isFavorite}
+        isInTrip={item.isInTrip}
+        onPress={handleOpenPlaceDetails}
+        onToggleFavorite={toggleFavorite}
+        onToggleTrip={handleTogglePlaceInTrip}
+      />
+    ),
+    [handleOpenPlaceDetails, toggleFavorite, handleTogglePlaceInTrip],
+  );
 
   return (
     <SafeAreaView edges={['top']} className="flex-1 bg-slate-50">
@@ -90,7 +125,7 @@ export const HomeScreen: React.FC = () => {
               />
               {activeFiltersCount > 0 ? (
                 <Text
-                  style={{fontVariant: ['tabular-nums']}}
+                  style={styles.tabularNums}
                   className="ml-1 text-xs font-bold text-blue-600">
                   {activeFiltersCount}
                 </Text>
@@ -122,7 +157,7 @@ export const HomeScreen: React.FC = () => {
           <View className="flex-row items-center">
             <View className="mr-2 h-2 w-2 rounded-full bg-blue-600" />
             <Text
-              style={{fontVariant: ['tabular-nums']}}
+              style={styles.tabularNums}
               className="text-xs font-semibold text-slate-600">
               Showing{' '}
               <Text className="font-extrabold text-slate-900">
@@ -167,9 +202,10 @@ export const HomeScreen: React.FC = () => {
           {filterCategories.map(category => (
             <CategoryChip
               key={category.id}
+              id={category.id}
               label={category.label}
               isSelected={selectedCategory === category.id}
-              onPress={() => setSelectedCategory(category.id)}
+              onSelect={setSelectedCategory}
             />
           ))}
         </ScrollView>
@@ -190,28 +226,8 @@ export const HomeScreen: React.FC = () => {
             colors={['#2563eb']}
           />
         }
-        contentContainerStyle={{
-          paddingHorizontal: 16,
-          paddingTop: 8,
-          paddingBottom: 24,
-          flexGrow: 1,
-        }}
-        renderItem={({item}) => (
-          <PlaceCard
-            placeId={item.id}
-            title={item.title}
-            address={item.address}
-            categoryLabel={item.categoryLabel}
-            categoryBadgeClassName={item.categoryBadgeClassName}
-            categoryTextClassName={item.categoryTextClassName}
-            distanceLabel={item.distanceLabel}
-            isFavorite={item.isFavorite}
-            isInTrip={item.isInTrip}
-            onPress={handleOpenPlaceDetails}
-            onToggleFavorite={toggleFavorite}
-            onToggleTrip={handleTogglePlaceInTrip}
-          />
-        )}
+        contentContainerStyle={styles.listContent}
+        renderItem={renderPlaceItem}
         ListEmptyComponent={
           <EmptyState
             title="No matching places"
@@ -233,7 +249,7 @@ export const HomeScreen: React.FC = () => {
         onlyFavorites={onlyFavorites}
         sortBy={sortBy}
         distanceAnchorMode={distanceAnchorMode}
-        activeAnchorLabel={activeAnchorLabel}
+        selectedCityPresetId={selectedCityPresetId}
         cityPresets={cityPresets}
         customCityInput={customCityInput}
         isSearchingCity={isSearchingCity}

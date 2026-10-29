@@ -1,5 +1,5 @@
 import React from 'react';
-import {Pressable, Text, View} from 'react-native';
+import {Pressable, StyleSheet, Text, View} from 'react-native';
 import MapView, {Marker, Polyline} from 'react-native-maps';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {Compass, LocateFixed, Minus, Plus} from 'lucide-react-native';
@@ -7,6 +7,12 @@ import {PlaceMarker} from '../entities/place/ui/PlaceMarker';
 import {useMapExplorer} from '../features/map-explorer/model/useMapExplorer';
 import {MapPlacePreview} from '../widgets/map-place-preview/ui/MapPlacePreview';
 import {MapTappedPointCard} from '../widgets/map-tapped-point-card/ui/MapTappedPointCard';
+
+const styles = StyleSheet.create({
+  map: {
+    flex: 1,
+  },
+});
 
 export const MapScreen: React.FC = () => {
   const {
@@ -39,7 +45,7 @@ export const MapScreen: React.FC = () => {
     <View className="flex-1 bg-slate-100">
       <MapView
         ref={mapRef}
-        style={{flex: 1}}
+        style={styles.map}
         initialRegion={initialRegion}
         showsUserLocation={isLocationGranted}
         showsMyLocationButton={false}
@@ -52,21 +58,9 @@ export const MapScreen: React.FC = () => {
           <Polyline
             key={segment.id}
             coordinates={segment.coordinates}
-            strokeColor={
-              segment.status === 'completed'
-                ? '#10b981'
-                : segment.status === 'active_next'
-                  ? '#f59e0b'
-                  : '#2563eb'
-            }
-            strokeWidth={segment.status === 'active_next' ? 5 : 4}
-            lineDashPattern={
-              segment.status === 'completed'
-                ? undefined
-                : segment.status === 'active_next'
-                  ? [12, 6, 3, 6]
-                  : [8, 5]
-            }
+            strokeColor={segment.strokeColor}
+            strokeWidth={segment.strokeWidth}
+            lineDashPattern={segment.lineDashPattern}
           />
         ))}
 

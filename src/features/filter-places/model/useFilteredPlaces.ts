@@ -104,6 +104,17 @@ export const useFilteredPlaces = () => {
     return distanceAnchorMode === 'custom' ? customAnchorLabel : 'Current GPS';
   }, [distanceAnchorMode, customAnchorLabel]);
 
+  const selectedCityPresetId = useMemo(() => {
+    if (distanceAnchorMode !== 'custom') {
+      return null;
+    }
+    const normalizedLabel = customAnchorLabel.trim().toLowerCase();
+    const matchedPreset = DISTANCE_ANCHOR_CITY_PRESETS.find(
+      preset => preset.label.toLowerCase() === normalizedLabel,
+    );
+    return matchedPreset ? matchedPreset.id : null;
+  }, [distanceAnchorMode, customAnchorLabel]);
+
   const activeFiltersCount = useMemo(() => {
     let count = 0;
     if (selectedCategory !== 'all') {
@@ -126,7 +137,7 @@ export const useFilteredPlaces = () => {
     [tripItems],
   );
 
-  const filteredPlaceCards: PlaceCardItemViewModel[] = useMemo(() => {
+  const sortedPlacesWithDistance = useMemo(() => {
     const normalizedSearch = debouncedSearchQuery.trim().toLowerCase();
 
     const matched = places
@@ -163,7 +174,7 @@ export const useFilteredPlaces = () => {
         return {
           place,
           distanceKm,
-          viewModel: {
+          baseCard: {
             id: place.id,
             title: place.title,
             address: place.address,
@@ -172,7 +183,6 @@ export const useFilteredPlaces = () => {
             categoryTextClassName: categoryConfig.textClassName,
             distanceLabel: formatDistance(distanceKm),
             isFavorite: place.isFavorite,
-            isInTrip: tripIdsSet.has(place.id),
           },
         };
       });
@@ -187,7 +197,7 @@ export const useFilteredPlaces = () => {
       return second.place.createdAt - first.place.createdAt;
     });
 
-    return matched.map(item => item.viewModel);
+    return matched.map(item => item.baseCard);
   }, [
     places,
     onlyFavorites,
@@ -195,8 +205,14 @@ export const useFilteredPlaces = () => {
     debouncedSearchQuery,
     activeAnchorCoordinates,
     sortBy,
-    tripIdsSet,
   ]);
+
+  const filteredPlaceCards: PlaceCardItemViewModel[] = useMemo(() => {
+    return sortedPlacesWithDistance.map(baseCard => ({
+      ...baseCard,
+      isInTrip: tripIdsSet.has(baseCard.id),
+    }));
+  }, [sortedPlacesWithDistance, tripIdsSet]);
 
   const handleTogglePlaceInTrip = useCallback(
     (placeId: string) => {
@@ -304,6 +320,7 @@ export const useFilteredPlaces = () => {
     setSortBy,
     distanceAnchorMode,
     activeAnchorLabel,
+    selectedCityPresetId,
     activeFiltersCount,
     cityPresets: DISTANCE_ANCHOR_CITY_PRESETS,
     customCityInput,

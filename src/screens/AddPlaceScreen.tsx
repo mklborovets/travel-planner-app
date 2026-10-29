@@ -5,6 +5,7 @@ import {
   Platform,
   Pressable,
   ScrollView,
+  StyleSheet,
   Text,
   TextInput,
   View,
@@ -20,6 +21,13 @@ import {
 import {useAddPlaceForm} from '../features/add-place/model/useAddPlaceForm';
 import {CategoryChip} from '../shared/ui/CategoryChip';
 import {CategoryPickerModal} from '../widgets/category-picker-modal/ui/CategoryPickerModal';
+
+const styles = StyleSheet.create({
+  scrollContent: {
+    padding: 16,
+    paddingBottom: 40,
+  },
+});
 
 export const AddPlaceScreen: React.FC = () => {
   const {
@@ -49,7 +57,7 @@ export const AddPlaceScreen: React.FC = () => {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       className="flex-1 bg-slate-50">
       <ScrollView
-        contentContainerStyle={{padding: 16, paddingBottom: 40}}
+        contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled">
         <View className="mb-3 flex-row items-center justify-between">
           <Text className="flex-1 pr-2 text-xs font-medium text-slate-500">
@@ -148,9 +156,10 @@ export const AddPlaceScreen: React.FC = () => {
             {quickCategories.map(category => (
               <CategoryChip
                 key={category.id}
+                id={category.id}
                 label={category.label}
                 isSelected={selectedCategory === category.id}
-                onPress={() => handleSelectCategory(category.id)}
+                onSelect={handleSelectCategory}
               />
             ))}
           </ScrollView>

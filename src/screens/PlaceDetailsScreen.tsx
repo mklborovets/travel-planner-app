@@ -1,5 +1,5 @@
 import React from 'react';
-import {Pressable, ScrollView, Text, View} from 'react-native';
+import {Pressable, ScrollView, StyleSheet, Text, View} from 'react-native';
 import {
   BookmarkPlus,
   Check,
@@ -15,6 +15,13 @@ import {
 } from 'lucide-react-native';
 import {usePlaceDetails} from '../features/place-details/model/usePlaceDetails';
 import {EmptyState} from '../shared/ui/EmptyState';
+
+const styles = StyleSheet.create({
+  scrollContent: {
+    padding: 16,
+    paddingBottom: 36,
+  },
+});
 
 export const PlaceDetailsScreen: React.FC = () => {
   const {
@@ -48,7 +55,7 @@ export const PlaceDetailsScreen: React.FC = () => {
   return (
     <ScrollView
       className="flex-1 bg-slate-50"
-      contentContainerStyle={{padding: 16, paddingBottom: 36}}>
+      contentContainerStyle={styles.scrollContent}>
       <View className="mb-4 rounded-2xl border border-slate-200 bg-white p-5">
         <View className="mb-3 flex-row items-center justify-between">
           <View

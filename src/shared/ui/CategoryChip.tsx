@@ -1,20 +1,30 @@
 import React, {memo} from 'react';
 import {Pressable, Text} from 'react-native';
 
-export interface CategoryChipProps {
+export interface CategoryChipProps<T extends string = string> {
+  id?: T;
   label: string;
   isSelected: boolean;
-  onPress: () => void;
+  onSelect?: (id: T) => void;
+  onPress?: () => void;
 }
 
-const CategoryChipComponent: React.FC<CategoryChipProps> = ({
+function CategoryChipComponent<T extends string = string>({
+  id,
   label,
   isSelected,
+  onSelect,
   onPress,
-}) => {
+}: CategoryChipProps<T>) {
   return (
     <Pressable
-      onPress={onPress}
+      onPress={() => {
+        if (onSelect && id !== undefined) {
+          onSelect(id);
+          return;
+        }
+        onPress?.();
+      }}
       className={
         isSelected
           ? 'mr-2 rounded-full bg-blue-600 px-4 py-2'
@@ -30,6 +40,8 @@ const CategoryChipComponent: React.FC<CategoryChipProps> = ({
       </Text>
     </Pressable>
   );
-};
+}
 
-export const CategoryChip = memo(CategoryChipComponent);
+export const CategoryChip = memo(
+  CategoryChipComponent,
+) as typeof CategoryChipComponent;

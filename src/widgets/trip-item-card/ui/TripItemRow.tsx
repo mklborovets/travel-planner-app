@@ -1,5 +1,5 @@
 import React, {memo} from 'react';
-import {Animated, Pressable, Text, View} from 'react-native';
+import {Animated, Pressable, StyleSheet, Text, View} from 'react-native';
 import {
   CheckSquare,
   GripVertical,
@@ -14,6 +14,15 @@ import {
   TripDragCoordinator,
   useDraggableTripRow,
 } from '../../../features/trip-planner/model/useDraggableTripRow';
+
+const styles = StyleSheet.create({
+  draggingRow: {
+    zIndex: 50,
+  },
+  idleRow: {
+    zIndex: 1,
+  },
+});
 
 export interface TripItemRowProps {
   placeId: string;
@@ -62,10 +71,12 @@ const TripItemRowComponent: React.FC<TripItemRowProps> = ({
   return (
     <Animated.View
       onLayout={handleRowLayout}
-      style={{
-        transform: [{translateY}, {scale: isDragging ? 1.02 : 1}],
-        zIndex: isDragging ? 50 : 1,
-      }}
+      style={[
+        isDragging ? styles.draggingRow : styles.idleRow,
+        {
+          transform: [{translateY}, {scale: isDragging ? 1.02 : 1}],
+        },
+      ]}
       className={
         isDragging
           ? 'mb-3 rounded-2xl border-2 border-blue-600 bg-white p-4 shadow-md'

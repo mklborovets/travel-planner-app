@@ -1,8 +1,10 @@
-import React from 'react';
+import React, {useCallback} from 'react';
 import {
   FlatList,
+  ListRenderItem,
   Platform,
   Pressable,
+  StyleSheet,
   Text,
   TextInput,
   View,
@@ -27,6 +29,18 @@ import {TripItemRow} from '../widgets/trip-item-card/ui/TripItemRow';
 import {TripSelectorModal} from '../widgets/trip-selector-modal/ui/TripSelectorModal';
 
 const keyExtractor = (item: TripStopViewModel) => item.placeId;
+
+const styles = StyleSheet.create({
+  tabularNums: {
+    fontVariant: ['tabular-nums'],
+  },
+  listContent: {
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 24,
+    flexGrow: 1,
+  },
+});
 
 export const TripScreen: React.FC = () => {
   const {
@@ -71,6 +85,36 @@ export const TripScreen: React.FC = () => {
     handleBrowsePlaces,
   } = useTripPlanner();
 
+  const renderTripItem = useCallback<ListRenderItem<TripStopViewModel>>(
+    ({item, index}) => (
+      <TripItemRow
+        placeId={item.placeId}
+        index={index}
+        stepNumber={item.stepNumber}
+        title={item.title}
+        address={item.address}
+        coordinates={item.coordinates}
+        categoryLabel={item.categoryLabel}
+        categoryBadgeClassName={item.categoryBadgeClassName}
+        categoryTextClassName={item.categoryTextClassName}
+        distanceLabel={item.distanceLabel}
+        isVisited={item.isVisited}
+        dragCoordinator={dragCoordinator}
+        onToggleVisited={toggleVisited}
+        onPressDetails={handleOpenPlaceDetails}
+        onPressFocusMap={handleFocusStopOnMap}
+        onPressRemove={removePlaceFromTrip}
+      />
+    ),
+    [
+      dragCoordinator,
+      toggleVisited,
+      handleOpenPlaceDetails,
+      handleFocusStopOnMap,
+      removePlaceFromTrip,
+    ],
+  );
+
   return (
     <SafeAreaView edges={['top']} className="flex-1 bg-slate-50">
       <View className="px-4 pt-3 pb-2">
@@ -93,7 +137,7 @@ export const TripScreen: React.FC = () => {
             className="h-10 flex-shrink-0 flex-row items-center rounded-xl border border-blue-200 bg-blue-50 px-3">
             <Route size={14} color="#2563eb" />
             <Text
-              style={{fontVariant: ['tabular-nums']}}
+              style={styles.tabularNums}
               className="mx-1.5 text-xs font-bold text-blue-700">
               Trips ({tripSummaries.length})
             </Text>
@@ -153,32 +197,8 @@ export const TripScreen: React.FC = () => {
         windowSize={5}
         removeClippedSubviews={Platform.OS === 'android'}
         scrollEnabled={!isAnyRowDragging}
-        contentContainerStyle={{
-          paddingHorizontal: 16,
-          paddingTop: 8,
-          paddingBottom: 24,
-          flexGrow: 1,
-        }}
-        renderItem={({item, index}) => (
-          <TripItemRow
-            placeId={item.placeId}
-            index={index}
-            stepNumber={item.stepNumber}
-            title={item.title}
-            address={item.address}
-            coordinates={item.coordinates}
-            categoryLabel={item.categoryLabel}
-            categoryBadgeClassName={item.categoryBadgeClassName}
-            categoryTextClassName={item.categoryTextClassName}
-            distanceLabel={item.distanceLabel}
-            isVisited={item.isVisited}
-            dragCoordinator={dragCoordinator}
-            onToggleVisited={toggleVisited}
-            onPressDetails={handleOpenPlaceDetails}
-            onPressFocusMap={handleFocusStopOnMap}
-            onPressRemove={removePlaceFromTrip}
-          />
-        )}
+        contentContainerStyle={styles.listContent}
+        renderItem={renderTripItem}
         ListEmptyComponent={
           <EmptyState
             title="Your trip itinerary is empty"

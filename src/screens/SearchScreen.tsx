@@ -1,9 +1,11 @@
-import React from 'react';
+import React, {useCallback} from 'react';
 import {
   ActivityIndicator,
   FlatList,
+  ListRenderItem,
   Platform,
   Pressable,
+  StyleSheet,
   Text,
   View,
 } from 'react-native';
@@ -20,6 +22,15 @@ import {SearchResultCard} from '../widgets/search-result-card/ui/SearchResultCar
 
 const keyExtractor = (item: SearchPlaceViewModel) => item.place.id;
 
+const styles = StyleSheet.create({
+  listContent: {
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 24,
+    flexGrow: 1,
+  },
+});
+
 export const SearchScreen: React.FC = () => {
   const {
     searchQuery,
@@ -31,6 +42,7 @@ export const SearchScreen: React.FC = () => {
     setCountryCode,
     countryPresets,
     selectedCityLabel,
+    selectedCityPresetId,
     cityPresets,
     customCityInput,
     setCustomCityInput,
@@ -56,6 +68,26 @@ export const SearchScreen: React.FC = () => {
     handleSaveAndAddToTrip,
     handleOpenResultDetails,
   } = usePlacesSearch();
+
+  const renderResultItem = useCallback<ListRenderItem<SearchPlaceViewModel>>(
+    ({item}) => (
+      <SearchResultCard
+        place={item.place}
+        title={item.place.title}
+        address={item.place.address}
+        categoryLabel={item.categoryLabel}
+        categoryBadgeClassName={item.categoryBadgeClassName}
+        categoryTextClassName={item.categoryTextClassName}
+        formattedCoordinates={item.formattedCoordinates}
+        isSaved={item.isSaved}
+        isInTrip={item.isInTrip}
+        onPressCard={handleOpenResultDetails}
+        onSavePlace={handleSavePlace}
+        onAddToTrip={handleSaveAndAddToTrip}
+      />
+    ),
+    [handleOpenResultDetails, handleSavePlace, handleSaveAndAddToTrip],
+  );
 
   return (
     <SafeAreaView edges={['top']} className="flex-1 bg-slate-50">
@@ -133,28 +165,8 @@ export const SearchScreen: React.FC = () => {
           windowSize={5}
           removeClippedSubviews={Platform.OS === 'android'}
           keyboardShouldPersistTaps="handled"
-          contentContainerStyle={{
-            paddingHorizontal: 16,
-            paddingTop: 8,
-            paddingBottom: 24,
-            flexGrow: 1,
-          }}
-          renderItem={({item}) => (
-            <SearchResultCard
-              place={item.place}
-              title={item.place.title}
-              address={item.place.address}
-              categoryLabel={item.categoryLabel}
-              categoryBadgeClassName={item.categoryBadgeClassName}
-              categoryTextClassName={item.categoryTextClassName}
-              formattedCoordinates={item.formattedCoordinates}
-              isSaved={item.isSaved}
-              isInTrip={item.isInTrip}
-              onPressCard={handleOpenResultDetails}
-              onSavePlace={handleSavePlace}
-              onAddToTrip={handleSaveAndAddToTrip}
-            />
-          )}
+          contentContainerStyle={styles.listContent}
+          renderItem={renderResultItem}
           ListEmptyComponent={
             <EmptyState
               title="No places found"
@@ -180,6 +192,7 @@ export const SearchScreen: React.FC = () => {
         countryCode={countryCode}
         countryPresets={countryPresets}
         selectedCityLabel={selectedCityLabel}
+        selectedCityPresetId={selectedCityPresetId}
         cityPresets={cityPresets}
         customCityInput={customCityInput}
         isSearchingCity={isSearchingCity}
