@@ -1,8 +1,10 @@
-import React from 'react';
+import React, {memo} from 'react';
 import {Pressable, Text, View} from 'react-native';
 import {Bookmark, Check, MapPin, Plus, Route} from 'lucide-react-native';
+import {Place} from '../../../entities/place/model/types';
 
 export interface SearchResultCardProps {
+  place: Place;
   title: string;
   address: string;
   categoryLabel: string;
@@ -11,12 +13,13 @@ export interface SearchResultCardProps {
   formattedCoordinates: string;
   isSaved: boolean;
   isInTrip: boolean;
-  onPressCard: () => void;
-  onSavePlace: () => void;
-  onAddToTrip: () => void;
+  onPressCard: (place: Place) => void;
+  onSavePlace: (place: Place) => void;
+  onAddToTrip: (place: Place) => void;
 }
 
-export const SearchResultCard: React.FC<SearchResultCardProps> = ({
+const SearchResultCardComponent: React.FC<SearchResultCardProps> = ({
+  place,
   title,
   address,
   categoryLabel,
@@ -31,7 +34,7 @@ export const SearchResultCard: React.FC<SearchResultCardProps> = ({
 }) => {
   return (
     <Pressable
-      onPress={onPressCard}
+      onPress={() => onPressCard(place)}
       className="mb-3 rounded-2xl border border-slate-200 bg-white p-4">
       <View className="mb-2 flex-row items-center justify-between">
         <View className={`rounded-full px-2.5 py-0.5 ${categoryBadgeClassName}`}>
@@ -57,7 +60,7 @@ export const SearchResultCard: React.FC<SearchResultCardProps> = ({
 
       <View className="flex-row items-center space-x-2">
         <Pressable
-          onPress={onSavePlace}
+          onPress={() => onSavePlace(place)}
           disabled={isSaved}
           className={
             isSaved
@@ -80,7 +83,7 @@ export const SearchResultCard: React.FC<SearchResultCardProps> = ({
         </Pressable>
 
         <Pressable
-          onPress={onAddToTrip}
+          onPress={() => onAddToTrip(place)}
           disabled={isInTrip}
           className={
             isInTrip
@@ -106,3 +109,4 @@ export const SearchResultCard: React.FC<SearchResultCardProps> = ({
   );
 };
 
+export const SearchResultCard = memo(SearchResultCardComponent);

@@ -124,6 +124,7 @@ export const useMapExplorer = () => {
   }, [route.params?.focusCoordinates, userCoordinates]);
 
   const currentRegionRef = useRef<Region>(initialRegion);
+  const [visibleRegion, setVisibleRegion] = useState<Region>(initialRegion);
   const lastMarkerPressTimeRef = useRef<number>(0);
   const streetSegmentCacheRef = useRef<Record<string, Coordinates[]>>({});
 
@@ -140,6 +141,7 @@ export const useMapExplorer = () => {
         longitudeDelta: 0.015,
       };
       currentRegionRef.current = nextRegion;
+      setVisibleRegion(nextRegion);
       mapRef.current.animateToRegion(nextRegion, 450);
     }
   }, [
@@ -149,7 +151,30 @@ export const useMapExplorer = () => {
   ]);
 
   const markers: MapMarkerViewModel[] = useMemo(() => {
-    return places.map(place => {
+    const shouldCullByViewport = places.length > 40;
+    const activeTripPlaceIds = new Set(tripItems.map(item => item.placeId));
+    const latBuffer = visibleRegion.latitudeDelta * 0.75;
+    const lngBuffer = visibleRegion.longitudeDelta * 0.75;
+
+    const visiblePlaces = shouldCullByViewport
+      ? places.filter(place => {
+          if (
+            place.id === selectedPlaceId ||
+            activeTripPlaceIds.has(place.id)
+          ) {
+            return true;
+          }
+          const withinLat =
+            Math.abs(place.coordinates.latitude - visibleRegion.latitude) <=
+            latBuffer;
+          const withinLng =
+            Math.abs(place.coordinates.longitude - visibleRegion.longitude) <=
+            lngBuffer;
+          return withinLat && withinLng;
+        })
+      : places;
+
+    return visiblePlaces.map(place => {
       const categoryConfig = CATEGORY_MAP[place.category];
       return {
         id: place.id,
@@ -159,7 +184,7 @@ export const useMapExplorer = () => {
         pinColor: categoryConfig.hexColor,
       };
     });
-  }, [places]);
+  }, [places, tripItems, selectedPlaceId, visibleRegion]);
 
   const orderedTripStops = useMemo(() => {
     const placesById: Record<string, Place> = {};
@@ -305,6 +330,7 @@ export const useMapExplorer = () => {
 
   const handleRegionChangeComplete = useCallback((region: Region) => {
     currentRegionRef.current = region;
+    setVisibleRegion(region);
   }, []);
 
   const handleResetNorth = useCallback(() => {

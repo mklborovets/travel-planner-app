@@ -1,4 +1,4 @@
-import React from 'react';
+import React, {memo} from 'react';
 import {Pressable, Text} from 'react-native';
 
 export interface CategoryChipProps {
@@ -7,7 +7,7 @@ export interface CategoryChipProps {
   onPress: () => void;
 }
 
-export const CategoryChip: React.FC<CategoryChipProps> = ({
+const CategoryChipComponent: React.FC<CategoryChipProps> = ({
   label,
   isSelected,
   onPress,
@@ -32,3 +32,4 @@ export const CategoryChip: React.FC<CategoryChipProps> = ({
   );
 };
 
+export const CategoryChip = memo(CategoryChipComponent);

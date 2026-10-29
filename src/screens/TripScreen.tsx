@@ -1,5 +1,12 @@
 import React from 'react';
-import {FlatList, Pressable, Text, TextInput, View} from 'react-native';
+import {
+  FlatList,
+  Platform,
+  Pressable,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {
   ChevronDown,
@@ -141,6 +148,10 @@ export const TripScreen: React.FC = () => {
       <FlatList
         data={stops}
         keyExtractor={keyExtractor}
+        initialNumToRender={8}
+        maxToRenderPerBatch={8}
+        windowSize={5}
+        removeClippedSubviews={Platform.OS === 'android'}
         scrollEnabled={!isAnyRowDragging}
         contentContainerStyle={{
           paddingHorizontal: 16,

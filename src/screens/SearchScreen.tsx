@@ -2,6 +2,7 @@ import React from 'react';
 import {
   ActivityIndicator,
   FlatList,
+  Platform,
   Pressable,
   Text,
   View,
@@ -127,6 +128,10 @@ export const SearchScreen: React.FC = () => {
         <FlatList
           data={results}
           keyExtractor={keyExtractor}
+          initialNumToRender={8}
+          maxToRenderPerBatch={8}
+          windowSize={5}
+          removeClippedSubviews={Platform.OS === 'android'}
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={{
             paddingHorizontal: 16,
@@ -136,6 +141,7 @@ export const SearchScreen: React.FC = () => {
           }}
           renderItem={({item}) => (
             <SearchResultCard
+              place={item.place}
               title={item.place.title}
               address={item.place.address}
               categoryLabel={item.categoryLabel}
@@ -144,9 +150,9 @@ export const SearchScreen: React.FC = () => {
               formattedCoordinates={item.formattedCoordinates}
               isSaved={item.isSaved}
               isInTrip={item.isInTrip}
-              onPressCard={() => handleOpenResultDetails(item.place)}
-              onSavePlace={() => handleSavePlace(item.place)}
-              onAddToTrip={() => handleSaveAndAddToTrip(item.place)}
+              onPressCard={handleOpenResultDetails}
+              onSavePlace={handleSavePlace}
+              onAddToTrip={handleSaveAndAddToTrip}
             />
           )}
           ListEmptyComponent={

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, {memo} from 'react';
 import {Animated, Pressable, Text, View} from 'react-native';
 import {
   CheckSquare,
@@ -34,7 +34,7 @@ export interface TripItemRowProps {
   onPressRemove: (placeId: string) => void;
 }
 
-export const TripItemRow: React.FC<TripItemRowProps> = ({
+const TripItemRowComponent: React.FC<TripItemRowProps> = ({
   placeId,
   index,
   stepNumber,
@@ -155,3 +155,5 @@ export const TripItemRow: React.FC<TripItemRowProps> = ({
     </Animated.View>
   );
 };
+
+export const TripItemRow = memo(TripItemRowComponent);

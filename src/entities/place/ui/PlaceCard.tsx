@@ -1,8 +1,9 @@
-import React from 'react';
+import React, {memo} from 'react';
 import {Pressable, Text, View} from 'react-native';
 import {Heart, MapPin, Navigation, Route} from 'lucide-react-native';
 
 export interface PlaceCardProps {
+  placeId: string;
   title: string;
   address: string;
   categoryLabel: string;
@@ -11,12 +12,13 @@ export interface PlaceCardProps {
   distanceLabel?: string;
   isFavorite: boolean;
   isInTrip: boolean;
-  onPress: () => void;
-  onToggleFavorite: () => void;
-  onToggleTrip: () => void;
+  onPress: (placeId: string) => void;
+  onToggleFavorite: (placeId: string) => void;
+  onToggleTrip: (placeId: string) => void;
 }
 
-export const PlaceCard: React.FC<PlaceCardProps> = ({
+const PlaceCardComponent: React.FC<PlaceCardProps> = ({
+  placeId,
   title,
   address,
   categoryLabel,
@@ -31,7 +33,7 @@ export const PlaceCard: React.FC<PlaceCardProps> = ({
 }) => {
   return (
     <Pressable
-      onPress={onPress}
+      onPress={() => onPress(placeId)}
       className="mb-3 rounded-2xl border border-slate-200 bg-white p-4">
       <View className="flex-row items-start justify-between">
         <View className="flex-1 pr-3">
@@ -67,7 +69,7 @@ export const PlaceCard: React.FC<PlaceCardProps> = ({
         </View>
         <View className="flex-row items-center">
           <Pressable
-            onPress={onToggleTrip}
+            onPress={() => onToggleTrip(placeId)}
             hitSlop={8}
             className={
               isInTrip
@@ -77,7 +79,7 @@ export const PlaceCard: React.FC<PlaceCardProps> = ({
             <Route size={17} color={isInTrip ? '#059669' : '#94a3b8'} />
           </Pressable>
           <Pressable
-            onPress={onToggleFavorite}
+            onPress={() => onToggleFavorite(placeId)}
             hitSlop={8}
             className={
               isFavorite
@@ -95,3 +97,5 @@ export const PlaceCard: React.FC<PlaceCardProps> = ({
     </Pressable>
   );
 };
+
+export const PlaceCard = memo(PlaceCardComponent);

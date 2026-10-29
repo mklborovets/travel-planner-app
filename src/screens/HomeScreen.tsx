@@ -1,6 +1,7 @@
 import React from 'react';
 import {
   FlatList,
+  Platform,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -177,6 +178,10 @@ export const HomeScreen: React.FC = () => {
       <FlatList
         data={filteredPlaceCards}
         keyExtractor={keyExtractor}
+        initialNumToRender={8}
+        maxToRenderPerBatch={8}
+        windowSize={5}
+        removeClippedSubviews={Platform.OS === 'android'}
         refreshControl={
           <RefreshControl
             refreshing={isRefreshing}
@@ -193,6 +198,7 @@ export const HomeScreen: React.FC = () => {
         }}
         renderItem={({item}) => (
           <PlaceCard
+            placeId={item.id}
             title={item.title}
             address={item.address}
             categoryLabel={item.categoryLabel}
@@ -201,9 +207,9 @@ export const HomeScreen: React.FC = () => {
             distanceLabel={item.distanceLabel}
             isFavorite={item.isFavorite}
             isInTrip={item.isInTrip}
-            onPress={() => handleOpenPlaceDetails(item.id)}
-            onToggleFavorite={() => toggleFavorite(item.id)}
-            onToggleTrip={() => handleTogglePlaceInTrip(item.id)}
+            onPress={handleOpenPlaceDetails}
+            onToggleFavorite={toggleFavorite}
+            onToggleTrip={handleTogglePlaceInTrip}
           />
         )}
         ListEmptyComponent={

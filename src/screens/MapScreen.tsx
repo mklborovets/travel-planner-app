@@ -73,11 +73,12 @@ export const MapScreen: React.FC = () => {
         {markers.map(marker => (
           <PlaceMarker
             key={marker.id}
+            id={marker.id}
             coordinate={marker.coordinate}
             title={marker.title}
             description={marker.address}
             pinColor={marker.pinColor}
-            onPress={() => handleSelectMarker(marker.id)}
+            onSelect={handleSelectMarker}
           />
         ))}
 
