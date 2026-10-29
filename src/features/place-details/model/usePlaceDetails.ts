@@ -2,6 +2,7 @@ import {useCallback, useMemo} from 'react';
 import {RouteProp, useNavigation, useRoute} from '@react-navigation/native';
 import {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {usePlacesStore} from '../../../entities/place/model/placesStore';
+import {useSettingsStore} from '../../../entities/settings/model/settingsStore';
 import {useTripStore} from '../../../entities/trip/model/tripStore';
 import {CATEGORY_MAP} from '../../../shared/config/categories';
 import {
@@ -36,6 +37,15 @@ export const usePlaceDetails = () => {
   const removePlaceFromTrip = useTripStore(state => state.removePlaceFromTrip);
 
   const {coordinates: userCoordinates} = useCurrentLocation();
+  const distanceAnchorMode = useSettingsStore(
+    state => state.distanceAnchorMode,
+  );
+  const customAnchorCoordinates = useSettingsStore(
+    state => state.customAnchorCoordinates,
+  );
+
+  const originCoordinates =
+    distanceAnchorMode === 'custom' ? customAnchorCoordinates : userCoordinates;
 
   const detailsViewModel = useMemo(() => {
     if (!place) {
@@ -43,7 +53,7 @@ export const usePlaceDetails = () => {
     }
     const categoryConfig = CATEGORY_MAP[place.category];
     const distanceKm = calculateHaversineDistanceKm(
-      userCoordinates,
+      originCoordinates,
       place.coordinates,
     );
     return {
@@ -59,7 +69,7 @@ export const usePlaceDetails = () => {
       isFavorite: place.isFavorite,
       isInTrip,
     };
-  }, [place, userCoordinates, isInTrip]);
+  }, [place, originCoordinates, isInTrip]);
 
   const handleToggleFavorite = useCallback(() => {
     if (!place) {
@@ -114,4 +124,3 @@ export const usePlaceDetails = () => {
     handleGoBack,
   };
 };
-

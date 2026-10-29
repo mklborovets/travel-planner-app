@@ -4,6 +4,12 @@ export type PlaceCategory =
   | 'museum'
   | 'park'
   | 'sightseeing'
+  | 'hotel'
+  | 'shopping'
+  | 'nature'
+  | 'entertainment'
+  | 'bar'
+  | 'transport'
   | 'other';
 
 export interface Coordinates {
@@ -47,4 +53,3 @@ export interface PlacesState {
   toggleFavorite: (placeId: string) => void;
   getPlaceById: (placeId: string) => Place | undefined;
 }
-

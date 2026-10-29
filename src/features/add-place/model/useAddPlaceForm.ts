@@ -1,11 +1,15 @@
-import {useCallback} from 'react';
+import {useCallback, useMemo, useState} from 'react';
 import {useForm} from 'react-hook-form';
 import {zodResolver} from '@hookform/resolvers/zod';
 import {RouteProp, useNavigation, useRoute} from '@react-navigation/native';
 import {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {usePlacesStore} from '../../../entities/place/model/placesStore';
 import {PlaceCategory} from '../../../entities/place/model/types';
-import {PLACE_CATEGORIES} from '../../../shared/config/categories';
+import {
+  CATEGORY_MAP,
+  PLACE_CATEGORIES,
+  PRIMARY_PLACE_CATEGORIES,
+} from '../../../shared/config/categories';
 import {DEFAULT_COORDINATES} from '../../../shared/lib/location';
 import {useCurrentLocation} from '../../../shared/lib/useCurrentLocation';
 import {RootStackParamList} from '../../../shared/types/navigation';
@@ -22,6 +26,9 @@ export const useAddPlaceForm = () => {
   const route = useRoute<AddPlaceRouteProp>();
   const addPlace = usePlacesStore(state => state.addPlace);
   const {coordinates: currentCoordinates} = useCurrentLocation();
+
+  const [isCategoryModalVisible, setIsCategoryModalVisible] =
+    useState<boolean>(false);
 
   const initialCoordinates =
     route.params?.initialCoordinates ?? DEFAULT_COORDINATES;
@@ -45,10 +52,37 @@ export const useAddPlaceForm = () => {
   });
 
   const selectedCategory = watch('category');
+  const selectedCategoryConfig = CATEGORY_MAP[selectedCategory];
+
+  const quickCategories = useMemo(() => {
+    const isPrimary = PRIMARY_PLACE_CATEGORIES.some(
+      item => item.id === selectedCategory,
+    );
+    if (isPrimary) {
+      return PRIMARY_PLACE_CATEGORIES;
+    }
+    return [selectedCategoryConfig, ...PRIMARY_PLACE_CATEGORIES.slice(0, 4)];
+  }, [selectedCategory, selectedCategoryConfig]);
 
   const handleSelectCategory = useCallback(
     (category: PlaceCategory) => {
       setValue('category', category, {shouldValidate: true});
+    },
+    [setValue],
+  );
+
+  const handleOpenCategoryModal = useCallback(() => {
+    setIsCategoryModalVisible(true);
+  }, []);
+
+  const handleCloseCategoryModal = useCallback(() => {
+    setIsCategoryModalVisible(false);
+  }, []);
+
+  const handleSelectCategoryFromModal = useCallback(
+    (category: PlaceCategory) => {
+      setValue('category', category, {shouldValidate: true});
+      setIsCategoryModalVisible(false);
     },
     [setValue],
   );
@@ -86,10 +120,15 @@ export const useAddPlaceForm = () => {
     errors,
     isSubmitting,
     categories: PLACE_CATEGORIES,
+    quickCategories,
     selectedCategory,
+    selectedCategoryLabel: selectedCategoryConfig.label,
+    isCategoryModalVisible,
     handleSelectCategory,
+    handleOpenCategoryModal,
+    handleCloseCategoryModal,
+    handleSelectCategoryFromModal,
     handleUseCurrentCoordinates,
     handleSubmitForm,
   };
 };
-

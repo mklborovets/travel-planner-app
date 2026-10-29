@@ -6,6 +6,12 @@ const placeCategoryEnum = z.enum([
   'museum',
   'park',
   'sightseeing',
+  'hotel',
+  'shopping',
+  'nature',
+  'entertainment',
+  'bar',
+  'transport',
   'other',
 ]);
 
@@ -51,4 +57,3 @@ export const placeFormSchema = z.object({
 });
 
 export type PlaceFormValues = z.infer<typeof placeFormSchema>;
-

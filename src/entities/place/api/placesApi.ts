@@ -13,12 +13,37 @@ export const inferCategoryFromNominatimType = (
     return 'coffee';
   }
   if (
-    normalized.includes('restaurant') ||
     normalized.includes('bar') ||
+    normalized.includes('pub') ||
+    normalized.includes('nightclub') ||
+    normalized.includes('biergarten')
+  ) {
+    return 'bar';
+  }
+  if (
+    normalized.includes('restaurant') ||
     normalized.includes('fast_food') ||
-    normalized.includes('pub')
+    normalized.includes('food_court')
   ) {
     return 'restaurant';
+  }
+  if (
+    normalized.includes('hotel') ||
+    normalized.includes('hostel') ||
+    normalized.includes('guest_house') ||
+    normalized.includes('motel') ||
+    normalized.includes('apartment')
+  ) {
+    return 'hotel';
+  }
+  if (
+    normalized.includes('shop') ||
+    normalized.includes('mall') ||
+    normalized.includes('supermarket') ||
+    normalized.includes('marketplace') ||
+    normalized.includes('department_store')
+  ) {
+    return 'shopping';
   }
   if (
     normalized.includes('museum') ||
@@ -27,19 +52,44 @@ export const inferCategoryFromNominatimType = (
   ) {
     return 'museum';
   }
-  if (
-    normalized.includes('park') ||
-    normalized.includes('garden') ||
-    normalized.includes('nature')
-  ) {
+  if (normalized.includes('park') || normalized.includes('garden')) {
     return 'park';
+  }
+  if (
+    normalized.includes('nature') ||
+    normalized.includes('peak') ||
+    normalized.includes('forest') ||
+    normalized.includes('beach') ||
+    normalized.includes('water') ||
+    normalized.includes('cliff')
+  ) {
+    return 'nature';
+  }
+  if (
+    normalized.includes('cinema') ||
+    normalized.includes('theme_park') ||
+    normalized.includes('zoo') ||
+    normalized.includes('stadium') ||
+    normalized.includes('aquarium') ||
+    normalized.includes('theatre')
+  ) {
+    return 'entertainment';
+  }
+  if (
+    normalized.includes('station') ||
+    normalized.includes('airport') ||
+    normalized.includes('aerodrome') ||
+    normalized.includes('bus_stop') ||
+    normalized.includes('ferry') ||
+    normalized.includes('terminal')
+  ) {
+    return 'transport';
   }
   if (
     normalized.includes('attraction') ||
     normalized.includes('monument') ||
     normalized.includes('memorial') ||
     normalized.includes('castle') ||
-    normalized.includes('theatre') ||
     normalized.includes('viewpoint')
   ) {
     return 'sightseeing';
@@ -90,4 +140,3 @@ export const searchNominatimPlaces = async (
   });
   return response.data;
 };
-

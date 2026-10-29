@@ -9,17 +9,23 @@ import {
   View,
 } from 'react-native';
 import {Controller} from 'react-hook-form';
-import {Crosshair, Check} from 'lucide-react-native';
+import {Check, Crosshair, LayoutGrid} from 'lucide-react-native';
 import {useAddPlaceForm} from '../features/add-place/model/useAddPlaceForm';
 import {CategoryChip} from '../shared/ui/CategoryChip';
+import {CategoryPickerModal} from '../widgets/category-picker-modal/ui/CategoryPickerModal';
 
 export const AddPlaceScreen: React.FC = () => {
   const {
     control,
     errors,
     categories,
+    quickCategories,
     selectedCategory,
+    isCategoryModalVisible,
     handleSelectCategory,
+    handleOpenCategoryModal,
+    handleCloseCategoryModal,
+    handleSelectCategoryFromModal,
     handleUseCurrentCoordinates,
     handleSubmitForm,
   } = useAddPlaceForm();
@@ -82,14 +88,24 @@ export const AddPlaceScreen: React.FC = () => {
         </View>
 
         <View className="mb-4">
-          <Text className="mb-2 text-sm font-semibold text-slate-700">
-            Category *
-          </Text>
+          <View className="mb-2 flex-row items-center justify-between">
+            <Text className="text-sm font-semibold text-slate-700">
+              Category *
+            </Text>
+            <Pressable
+              onPress={handleOpenCategoryModal}
+              className="flex-row items-center rounded-lg bg-slate-200/80 px-2.5 py-1">
+              <LayoutGrid size={13} color="#334155" />
+              <Text className="ml-1.5 text-xs font-semibold text-slate-700">
+                More Categories...
+              </Text>
+            </Pressable>
+          </View>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
             className="flex-row">
-            {categories.map(category => (
+            {quickCategories.map(category => (
               <CategoryChip
                 key={category.id}
                 label={category.label}
@@ -203,6 +219,14 @@ export const AddPlaceScreen: React.FC = () => {
           </Text>
         </Pressable>
       </ScrollView>
+
+      <CategoryPickerModal
+        visible={isCategoryModalVisible}
+        categories={categories}
+        selectedCategory={selectedCategory}
+        onSelectCategory={handleSelectCategoryFromModal}
+        onClose={handleCloseCategoryModal}
+      />
     </KeyboardAvoidingView>
   );
 };

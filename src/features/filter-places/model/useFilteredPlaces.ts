@@ -6,11 +6,16 @@ import {
 } from '@react-navigation/native';
 import {BottomTabNavigationProp} from '@react-navigation/bottom-tabs';
 import {NativeStackNavigationProp} from '@react-navigation/native-stack';
+import {searchNominatimPlaces} from '../../../entities/place/api/placesApi';
 import {usePlacesStore} from '../../../entities/place/model/placesStore';
+import {useSettingsStore} from '../../../entities/settings/model/settingsStore';
 import {
   CATEGORY_MAP,
+  CityAnchorPreset,
+  DISTANCE_ANCHOR_CITY_PRESETS,
   FILTER_CATEGORIES,
   FilterCategory,
+  PlaceSortOption,
 } from '../../../shared/config/categories';
 import {
   calculateHaversineDistanceKm,
@@ -44,11 +49,31 @@ export const useFilteredPlaces = () => {
   const toggleFavorite = usePlacesStore(state => state.toggleFavorite);
   const {coordinates: userCoordinates, refreshLocation} = useCurrentLocation();
 
+  const distanceAnchorMode = useSettingsStore(
+    state => state.distanceAnchorMode,
+  );
+  const customAnchorLabel = useSettingsStore(state => state.customAnchorLabel);
+  const customAnchorCoordinates = useSettingsStore(
+    state => state.customAnchorCoordinates,
+  );
+  const setGpsDistanceAnchor = useSettingsStore(
+    state => state.setGpsDistanceAnchor,
+  );
+  const setCustomDistanceAnchor = useSettingsStore(
+    state => state.setCustomDistanceAnchor,
+  );
+
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedCategory, setSelectedCategory] =
     useState<FilterCategory>('all');
   const [onlyFavorites, setOnlyFavorites] = useState<boolean>(false);
+  const [sortBy, setSortBy] = useState<PlaceSortOption>('distance');
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
+  const [isFilterModalVisible, setIsFilterModalVisible] =
+    useState<boolean>(false);
+  const [customCityInput, setCustomCityInput] = useState<string>('');
+  const [isSearchingCity, setIsSearchingCity] = useState<boolean>(false);
+  const [citySearchError, setCitySearchError] = useState<string | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -62,10 +87,37 @@ export const useFilteredPlaces = () => {
     setIsRefreshing(false);
   }, [refreshLocation]);
 
+  const activeAnchorCoordinates = useMemo(() => {
+    return distanceAnchorMode === 'custom'
+      ? customAnchorCoordinates
+      : userCoordinates;
+  }, [distanceAnchorMode, customAnchorCoordinates, userCoordinates]);
+
+  const activeAnchorLabel = useMemo(() => {
+    return distanceAnchorMode === 'custom' ? customAnchorLabel : 'Current GPS';
+  }, [distanceAnchorMode, customAnchorLabel]);
+
+  const activeFiltersCount = useMemo(() => {
+    let count = 0;
+    if (selectedCategory !== 'all') {
+      count += 1;
+    }
+    if (onlyFavorites) {
+      count += 1;
+    }
+    if (sortBy !== 'distance') {
+      count += 1;
+    }
+    if (distanceAnchorMode === 'custom') {
+      count += 1;
+    }
+    return count;
+  }, [selectedCategory, onlyFavorites, sortBy, distanceAnchorMode]);
+
   const filteredPlaceCards: PlaceCardItemViewModel[] = useMemo(() => {
     const normalizedSearch = searchQuery.trim().toLowerCase();
 
-    return places
+    const matched = places
       .filter(place => {
         if (onlyFavorites && !place.isFavorite) {
           return false;
@@ -93,26 +145,43 @@ export const useFilteredPlaces = () => {
       .map(place => {
         const categoryConfig = CATEGORY_MAP[place.category];
         const distanceKm = calculateHaversineDistanceKm(
-          userCoordinates,
+          activeAnchorCoordinates,
           place.coordinates,
         );
         return {
-          id: place.id,
-          title: place.title,
-          address: place.address,
-          categoryLabel: categoryConfig.label,
-          categoryBadgeClassName: categoryConfig.badgeClassName,
-          categoryTextClassName: categoryConfig.textClassName,
-          distanceLabel: formatDistance(distanceKm),
-          isFavorite: place.isFavorite,
+          place,
+          distanceKm,
+          viewModel: {
+            id: place.id,
+            title: place.title,
+            address: place.address,
+            categoryLabel: categoryConfig.label,
+            categoryBadgeClassName: categoryConfig.badgeClassName,
+            categoryTextClassName: categoryConfig.textClassName,
+            distanceLabel: formatDistance(distanceKm),
+            isFavorite: place.isFavorite,
+          },
         };
       });
+
+    matched.sort((first, second) => {
+      if (sortBy === 'distance') {
+        return first.distanceKm - second.distanceKm;
+      }
+      if (sortBy === 'title') {
+        return first.place.title.localeCompare(second.place.title);
+      }
+      return second.place.createdAt - first.place.createdAt;
+    });
+
+    return matched.map(item => item.viewModel);
   }, [
     places,
     onlyFavorites,
     selectedCategory,
     searchQuery,
-    userCoordinates,
+    activeAnchorCoordinates,
+    sortBy,
   ]);
 
   const handleClearSearch = useCallback(() => {
@@ -122,6 +191,60 @@ export const useFilteredPlaces = () => {
   const handleToggleFavoritesOnly = useCallback(() => {
     setOnlyFavorites(prev => !prev);
   }, []);
+
+  const handleOpenFilterModal = useCallback(() => {
+    setCitySearchError(null);
+    setIsFilterModalVisible(true);
+  }, []);
+
+  const handleCloseFilterModal = useCallback(() => {
+    setIsFilterModalVisible(false);
+  }, []);
+
+  const handleSelectGpsAnchor = useCallback(() => {
+    setCitySearchError(null);
+    setGpsDistanceAnchor();
+  }, [setGpsDistanceAnchor]);
+
+  const handleSelectCityPreset = useCallback(
+    (preset: CityAnchorPreset) => {
+      setCitySearchError(null);
+      setCustomDistanceAnchor(preset.label, preset.coordinates);
+    },
+    [setCustomDistanceAnchor],
+  );
+
+  const handleApplyCustomCitySearch = useCallback(async () => {
+    const trimmed = customCityInput.trim();
+    if (trimmed.length < 2) {
+      setCitySearchError('Enter at least 2 characters for city name.');
+      return;
+    }
+    setIsSearchingCity(true);
+    setCitySearchError(null);
+    try {
+      const results = await searchNominatimPlaces(trimmed);
+      if (results.length === 0) {
+        setCitySearchError('City not found. Try another name.');
+        setIsSearchingCity(false);
+        return;
+      }
+      const first = results[0];
+      const label =
+        first.name && first.name.trim().length > 0
+          ? first.name.trim()
+          : first.display_name.split(',')[0].trim();
+      setCustomDistanceAnchor(label, {
+        latitude: Number.parseFloat(first.lat) || 0,
+        longitude: Number.parseFloat(first.lon) || 0,
+      });
+      setCustomCityInput('');
+    } catch {
+      setCitySearchError('Failed to look up city coordinates.');
+    } finally {
+      setIsSearchingCity(false);
+    }
+  }, [customCityInput, setCustomDistanceAnchor]);
 
   const handleOpenPlaceDetails = useCallback(
     (placeId: string) => {
@@ -138,7 +261,10 @@ export const useFilteredPlaces = () => {
     setSearchQuery('');
     setSelectedCategory('all');
     setOnlyFavorites(false);
-  }, []);
+    setSortBy('distance');
+    setGpsDistanceAnchor();
+    setCitySearchError(null);
+  }, [setGpsDistanceAnchor]);
 
   return {
     searchQuery,
@@ -149,6 +275,22 @@ export const useFilteredPlaces = () => {
     setSelectedCategory,
     onlyFavorites,
     handleToggleFavoritesOnly,
+    sortBy,
+    setSortBy,
+    distanceAnchorMode,
+    activeAnchorLabel,
+    activeFiltersCount,
+    cityPresets: DISTANCE_ANCHOR_CITY_PRESETS,
+    customCityInput,
+    setCustomCityInput,
+    isSearchingCity,
+    citySearchError,
+    isFilterModalVisible,
+    handleOpenFilterModal,
+    handleCloseFilterModal,
+    handleSelectGpsAnchor,
+    handleSelectCityPreset,
+    handleApplyCustomCitySearch,
     filteredPlaceCards,
     totalPlacesCount: places.length,
     isRefreshing,
