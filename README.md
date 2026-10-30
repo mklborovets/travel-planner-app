@@ -131,25 +131,40 @@ cd travel-planner-app
 npm install
 ```
 
-### 2. Install CocoaPods (iOS)
+### 2. Configure Google Maps API Key (Android)
+Create or edit `android/local.properties` and add your Google Maps Android API key:
+```properties
+MAPS_API_KEY=AIzaSyYourActualKeyHere
+```
+*(If omitted, the build safely falls back to a development placeholder).*
+
+### 3. Install CocoaPods (iOS)
 ```bash
 cd ios
 pod install
 cd ..
 ```
 
-### 3. Start Metro Bundler
+### 4. Start Metro Bundler
 ```bash
 npm start
 ```
 
-### 4. Run Application
+### 5. Run Application
 ```bash
 # Run on Android
 npm run android
 
 # Run on iOS
 npm run ios
+```
+
+### 6. Build Release APK (Android)
+```bash
+cd android
+./gradlew assembleRelease
+# The generated APK will be located at:
+# android/app/build/outputs/apk/release/app-release.apk
 ```
 
 ---
